@@ -1,5 +1,5 @@
 package cyberrunner.Enemys;
-
+//Martin testing use these commands once done: git add ., git commit -m "Commit message here", git push
 import com.badlogic.gdx.math.Rectangle;
 
 public class Enemy {
