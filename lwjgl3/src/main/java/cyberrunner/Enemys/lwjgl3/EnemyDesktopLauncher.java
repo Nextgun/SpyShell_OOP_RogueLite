@@ -5,13 +5,15 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import cyberrunner.Enemys.EnemySandboxApp;
 
 public class EnemyDesktopLauncher {
-    public static void main(String[] args) {
-        Lwjgl3ApplicationConfiguration cfg = new Lwjgl3ApplicationConfiguration();
-        cfg.setTitle("Enemy Sandbox");
-        cfg.setWindowedMode(1280, 720);
-        cfg.useVsync(true);
-        cfg.setForegroundFPS(60);
+    public static void main (String[] args) {
+        Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+        config.setTitle("Enemy Sandbox");
+        config.setWindowedMode(1280, 720);
+        config.setForegroundFPS(60);
+        config.useVsync(true);
+        config.setResizable(true);
 
-        new Lwjgl3Application(new EnemySandboxApp(), cfg);
+        // Launch the sandbox app that spawns a Goblin + Hobgoblin
+        new Lwjgl3Application(new EnemySandboxApp(), config);
     }
 }
