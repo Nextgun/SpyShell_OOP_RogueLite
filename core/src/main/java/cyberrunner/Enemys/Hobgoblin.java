@@ -1,21 +1,23 @@
+//Hobgoblin.java
 package cyberrunner.Enemys;
 
 import com.badlogic.gdx.graphics.Texture;
 
-/** Tougher chaser. Slightly faster; deals 5 damage on hit. */
+/** Larger, tougher goblin variant. You set hobgoblin damage to 5. HP = 1. */
 public class Hobgoblin extends Enemy {
 
-    // Defaults (tweak as you like)
-    public static final float DEFAULT_SPEED  = 170f; // px/sec (faster than goblin)
-    public static final int   DEFAULT_DAMAGE = 5;    // per hit
+    public static final float DEFAULT_SPEED = 280f;
 
-    /** Use this when you just want a normal hobgoblin. */
-    public Hobgoblin(Texture texture, float x, float y, float w, float h) {
-        super(texture, x, y, w, h, DEFAULT_SPEED, DEFAULT_DAMAGE);
+    public Hobgoblin(Texture tex, float x, float y, float w, float h) {
+        // 7-arg ctor (HP defaults to 1)
+        super(tex, x, y, w, h, DEFAULT_SPEED, 5);
+        setMaxHp(1);
+        setHp(1);
     }
 
-    /** Optional: custom speed/damage variant. */
-    public Hobgoblin(Texture texture, float x, float y, float w, float h, float speed, int damage) {
-        super(texture, x, y, w, h, speed, damage);
+    public Hobgoblin(Texture tex, float x, float y, float w, float h, float speed, int damage) {
+        super(tex, x, y, w, h, speed, damage);
+        setMaxHp(1);
+        setHp(1);
     }
 }

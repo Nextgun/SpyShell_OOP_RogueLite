@@ -1,21 +1,23 @@
+//Goblin.java
 package cyberrunner.Enemys;
 
 import com.badlogic.gdx.graphics.Texture;
 
-/** Small melee chaser. Slower; deals 1 damage on hit. */
+/** Small chaser. You set goblin damage to 3. HP = 1. */
 public class Goblin extends Enemy {
 
-    // Defaults (tweak as you like)
-    public static final float DEFAULT_SPEED  = 140f; // px/sec
-    public static final int   DEFAULT_DAMAGE = 1;    // per hit
+    public static final float DEFAULT_SPEED = 260f; // a bit slower than bomber
 
-    /** Use this when you just want a normal goblin. */
-    public Goblin(Texture texture, float x, float y, float w, float h) {
-        super(texture, x, y, w, h, DEFAULT_SPEED, DEFAULT_DAMAGE);
+    public Goblin(Texture tex, float x, float y, float w, float h) {
+        // 7-arg ctor (HP defaults to 1)
+        super(tex, x, y, w, h, DEFAULT_SPEED, 3);
+        setMaxHp(1);
+        setHp(1);
     }
 
-    /** Optional: custom speed/damage variant (e.g., for special spawns). */
-    public Goblin(Texture texture, float x, float y, float w, float h, float speed, int damage) {
-        super(texture, x, y, w, h, speed, damage);
+    public Goblin(Texture tex, float x, float y, float w, float h, float speed, int damage) {
+        super(tex, x, y, w, h, speed, damage);
+        setMaxHp(1);
+        setHp(1);
     }
 }
