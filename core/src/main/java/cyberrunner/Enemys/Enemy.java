@@ -5,11 +5,14 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.Rectangle;
 
 /**
- * Base enemy: position, movement, touch damage, HP, and melee hit-protection.
- * This version adds a per-swing lock so a single sword swing can only deal
- * damage once to a given enemy, no matter how many frames the hitbox overlaps.
+ * Base enemy: position, movement, touch damage, HP, melee i-frames,
+ * and a swing de-dupe guard so one sword swing can't hit the same enemy twice.
  */
 public class Enemy {
+
+    // --- Identity / logging ---
+    private static int NEXT_UID = 1;
+    public final int uid;
 
     protected final Texture texture;
     protected final Rectangle bounds = new Rectangle();
@@ -26,30 +29,17 @@ public class Enemy {
     protected float touchDamageCooldownDuration = 0.45f;
     protected float touchDamageCooldownTimer = 0f;
 
-    // Short melee i-frame (kept as a general guard, but swingId is authoritative)
-    protected float meleeIFrameDuration = 0.14f;
+    // Melee i-frames so one swing can't tick multiple times
+    protected float meleeIFrameDuration = 0.14f; // slightly > swing frame time
     protected float meleeIFrameTimer = 0f;
 
-    // ---- NEW: identity + per-swing de-dupe ---------------------------------
-    private static int NEXT_UID = 1;
-    public final int uid = NEXT_UID++;
-
-    private int lastMeleeSwingId = -1; // which swing last hit me
-
-    /**
-     * Register the current melee swing. Returns true if this enemy
-     * should take damage for this swing (i.e., hasn't been hit by this swing yet).
-     */
-    public boolean tryRegisterMeleeSwing(int swingId) {
-        if (swingId == lastMeleeSwingId) return false; // already hit by this swing
-        lastMeleeSwingId = swingId;
-        return true;
-    }
-    // ------------------------------------------------------------------------
+    // De-dup per swing: remember last swing ID that damaged this enemy
+    private int lastRegisteredSwingId = -1;
 
     /** 7-arg ctor (defaults HP=1) */
     public Enemy(Texture texture, float x, float y, float w, float h,
                  float speed, int touchDamage) {
+        this.uid = NEXT_UID++;
         this.texture = texture;
         this.bounds.set(x, y, w, h);
         this.speed = speed;
@@ -61,6 +51,7 @@ public class Enemy {
     /** 8-arg ctor (explicit HP) */
     public Enemy(Texture texture, float x, float y, float w, float h,
                  float speed, int touchDamage, int hp) {
+        this.uid = NEXT_UID++;
         this.texture = texture;
         this.bounds.set(x, y, w, h);
         this.speed = speed;
@@ -71,6 +62,7 @@ public class Enemy {
 
     /** Minimal ctor */
     public Enemy(Texture texture, float x, float y, float w, float h) {
+        this.uid = NEXT_UID++;
         this.texture = texture;
         this.bounds.set(x, y, w, h);
     }
@@ -142,7 +134,21 @@ public class Enemy {
     }
     public boolean canDealTouchDamage() { return touchDamageCooldownTimer <= 0f; }
 
-    // Legacy i-frame helpers (still fine to keep; swingId prevents same-swing doubles)
+    // --- melee i-frame helpers ---
     public boolean canTakeMeleeHit() { return meleeIFrameTimer <= 0f; }
     public void markMeleeHitRegistered() { meleeIFrameTimer = meleeIFrameDuration; }
+
+    // --- swing de-dupe per enemy ---
+    /** Returns true if this enemy can register damage for this swingId (and records it). */
+    public boolean tryRegisterMeleeSwing(int swingId) {
+        // allow if (a) not hit yet this swing AND (b) i-frames are off
+        if (swingId < 0) return canTakeMeleeHit();
+        if (lastRegisteredSwingId == swingId) return false;
+        if (!canTakeMeleeHit()) return false;
+        lastRegisteredSwingId = swingId;
+        return true;
+    }
+
+    // --- UID accessor (for logs/UI) ---
+    public int getUid() { return uid; }
 }
