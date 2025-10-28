@@ -1,5 +1,5 @@
 // declares package namespace for this class
-package cyberrunner.game;
+package cyberrunner.Enemys;
 
 // imports the base class that provides lifecycle methods for a libGDX application
 import com.badlogic.gdx.ApplicationAdapter;
@@ -108,6 +108,9 @@ public class GameLauncher extends ApplicationAdapter {
             public void changed(ChangeEvent event, Actor actor) {
             	// print a message to the console when clicked (used for debugging)
                 System.out.println("Start game clicked!");
+                EnemySandboxApp gameplay = new EnemySandboxApp();
+                gameplay.create();
+                Gdx.input.setInputProcessor(null);
                 // you could swap some internal state here to go to gameplay
             }
         }); // close the listener
@@ -157,6 +160,41 @@ public class GameLauncher extends ApplicationAdapter {
         controlsHeader.setFontScale(1.5f);
         table.add(controlsHeader).colspan(2).padTop(20).padBottom(10).row();
     } // end of options
+    
+ // override the render method, called every frame (~60 fps)
+    @Override
+    public void render() {
+    	// set the clear color to black (rgb = 0, alpha = 1)
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+        
+        // clear the screen with the clear color (black) before drawing the next frame
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        // update the stage and all its actors based on the time elapsed since the last frame
+        stage.act(Gdx.graphics.getDeltaTime());
+        
+        // render the stage and all its UI elements to the screen
+        stage.draw();
+    } // close render method
+
+    // override the resize method, called when the window is resized
+    @Override
+    public void resize(int width, int height) {
+    	// update viewport to the new window size while maintaining aspect ratio (true = center camera)
+        stage.getViewport().update(width, height, true);
+    } // close resize method
+
+    // override the dispose method, called when the application closes
+    @Override
+    public void dispose() {
+    	// free memory used by the stage
+        stage.dispose();
+        // free memory used by the skin (textures, fonts, etc.)
+        skin.dispose();
+    } // close the dispose method
+} // end of class
+
+
         // move left
     
         /*table.add(new Label("Move Left:", skin)).padRight(10);
@@ -235,38 +273,8 @@ public class GameLauncher extends ApplicationAdapter {
     
     
     
-    // override the render method, called every frame (~60 fps)
-    @Override
-    public void render() {
-    	// set the clear color to black (rgb = 0, alpha = 1)
-        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
-        
-        // clear the screen with the clear color (black) before drawing the next frame
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+    
 
-        // update the stage and all its actors based on the time elapsed since the last frame
-        stage.act(Gdx.graphics.getDeltaTime());
-        
-        // render the stage and all its UI elements to the screen
-        stage.draw();
-    } // close render method
-
-    // override the resize method, called when the window is resized
-    @Override
-    public void resize(int width, int height) {
-    	// update viewport to the new window size while maintaining aspect ratio (true = center camera)
-        stage.getViewport().update(width, height, true);
-    } // close resize method
-
-    // override the dispose method, called when the application closes
-    @Override
-    public void dispose() {
-    	// free memory used by the stage
-        stage.dispose();
-        // free memory used by the skin (textures, fonts, etc.)
-        skin.dispose();
-    } // close the dispose method
-} // end of class
 /*
 private interface KeybindCallback {
     void onKeySet(int keycode);
