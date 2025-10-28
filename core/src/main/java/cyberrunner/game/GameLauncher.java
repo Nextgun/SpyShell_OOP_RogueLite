@@ -1,155 +1,147 @@
-//package cyberrunner.game;
-//
-//import com.badlogic.gdx.ApplicationAdapter;
-//import com.badlogic.gdx.Gdx;
-//import com.badlogic.gdx.graphics.GL20;
-//import com.badlogic.gdx.math.MathUtils;
-//import com.badlogic.gdx.scenes.scene2d.Actor;
-//import com.badlogic.gdx.scenes.scene2d.Stage;
-//import com.badlogic.gdx.scenes.scene2d.actions.Actions;
-//import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-//import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-//import com.badlogic.gdx.scenes.scene2d.ui.Window;
-//import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
-//import com.badlogic.gdx.utils.ScreenUtils;
-//import com.badlogic.gdx.utils.viewport.FitViewport;
-//
-///** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
-//public class GameLauncher extends ApplicationAdapter {
-//    private Stage stage;
-//    private Skin skin;
-//
-//    @Override
-//    public void create() {
-//        stage = new Stage(new FitViewport(640, 480));
-//        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
-//
-//        Window window = new Window("Example screen", skin, "border");
-//        window.defaults().pad(4f);
-//        window.add("This is a simple Scene2D view.").row();
-//        final TextButton button = new TextButton("Click me!", skin);
-//        button.pad(8f);
-//        button.addListener(new ChangeListener() {
-//            @Override
-//            public void changed(final ChangeEvent event, final Actor actor) {
-//                button.setText("Clicked.");
-//            }
-//        });
-//        window.add(button);
-//        window.pack();
-//        // We round the window position to avoid awkward half-pixel artifacts.
-//        // Casting using (int) would also work.
-//        window.setPosition(MathUtils.roundPositive(stage.getWidth() / 2f - window.getWidth() / 2f),
-//            MathUtils.roundPositive(stage.getHeight() / 2f - window.getHeight() / 2f));
-//        window.addAction(Actions.sequence(Actions.alpha(0f), Actions.fadeIn(1f)));
-//        stage.addActor(window);
-//
-//        Gdx.input.setInputProcessor(stage);
-//    }
-//
-//    @Override
-//    public void render() {
-//        ScreenUtils.clear(0f, 0f, 0f, 1f);
-//        stage.act(Gdx.graphics.getDeltaTime());
-//        stage.draw();
-//    }
-//
-//    @Override
-//    public void resize(int width, int height) {
-//        // If the window is minimized on a desktop (LWJGL3) platform, width and height are 0, which causes problems.
-//        // In that case, we don't resize anything, and wait for the window to be a normal size before updating.
-//        if(width <= 0 || height <= 0) return;
-//
-//        stage.getViewport().update(width, height);
-//    }
-//
-//    @Override
-//    public void dispose() {
-//        stage.dispose();
-//        skin.dispose();
-//    }
-//}
+// declares package namespace for this class
 package cyberrunner.game;
 
+// imports the base class that provides lifecycle methods for a libGDX application
 import com.badlogic.gdx.ApplicationAdapter;
+
+// imports the main libGDX utility class that provides access to graphics, input, files, etc
 import com.badlogic.gdx.Gdx;
+
+// imports openGL constants (i.e. GL_COLOR_BUFFER_BIT used for clearing the screen)
 import com.badlogic.gdx.graphics.GL20;
+
+// imports Stage, which manages and renders a scene graph of UI actors
 import com.badlogic.gdx.scenes.scene2d.Stage;
+
+// imports Label for displaying text
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+
+// imports Skin, which defines the visual style (fonts, colors, textures) for UI elements
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+
+// imports Table, a layout container that arranges UI elements in rows and columns 
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+
+// imports TextButton, a clickable button with text
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+
+// imports ChangeListener for handling UI events like button clicks
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
+
+// imports FitViewport, which maintains aspect ratio while scaling to fit the screen
 import com.badlogic.gdx.utils.viewport.FitViewport;
+
+// imports Actor, the base class for all UI elements in scene2d
 import com.badlogic.gdx.scenes.scene2d.Actor;
 
+// declares the main class, extending ApplicationAdapter to get lifecycle methods
 public class GameLauncher extends ApplicationAdapter {
 
+	// declare a field to hold the Stage (the container for all UI elements)
     private Stage stage;
+    
+    // declares a field to hold the UI skin (visual styling)
     private Skin skin;
 
+    // overrides the create method, called once when the application starts
+    // overriding is when a subclass provides a specific implementation for a method that
+    // is already defined in its parent class
     @Override
     public void create() {
+    	
+    	// create a new Stage w/ a viewport of 640x480 pixels that maintains aspect ratio
         stage = new Stage(new FitViewport(640, 480));
+        
+        // routes all input events (touches, clicks, keys) to the stage so UI can respond
         Gdx.input.setInputProcessor(stage);
+        
+        // load the UI skin definition from a JSON file that defines button styles fonts etc
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
 
+        // create a new Table to organize UI elements in a grid layout
         Table table = new Table();
+        
+        // make the table fill the entire stage (centered layout)
         table.setFillParent(true);
+        
+        // add the table to the stage so it will be rendered and receive input
         stage.addActor(table);
 
-        // Title
-        Label title = new Label("🚀 X-RUNNER", skin);
+        // create a text label displaying the title using the loaded skin's style
+        Label title = new Label("X-RUNNER", skin);
+        
+        // make the title text x2 as large as the default size 
         title.setFontScale(2f);
+        
+        // add the title to the table w/ 40 pixels of padding below it, then moves to the next row
         table.add(title).padBottom(40).row();
 
-        // Buttons
-        TextButton startButton = new TextButton("START GAME", skin);
+        // create a button displaying "START GAME", "OPTIONS", and "EXIT" text 
+        TextButton startButton = new TextButton("PAUSED", skin);
         TextButton optionsButton = new TextButton("OPTIONS", skin);
         TextButton exitButton = new TextButton("EXIT", skin);
 
+        // make each button's text 1.5x larger than default
         startButton.getLabel().setFontScale(1.5f);
         optionsButton.getLabel().setFontScale(1.5f);
         exitButton.getLabel().setFontScale(1.5f);
 
+        // add each button to table with width of 250 pixels, 10 pixels padding on all sides
         table.add(startButton).width(250).pad(10).row();
-        table.add(optionsButton).width(250).pad(10).row();
-        table.add(exitButton).width(250).pad(10).row();
+        //table.add(optionsButton).width(250).pad(10).row();
+        //table.add(exitButton).width(250).pad(10).row();
 
-        // Button logic
+        // add a click listener to the start button
         startButton.addListener(new ChangeListener() {
+        	// override the changed method, called when the button is clicked
             @Override
             public void changed(ChangeEvent event, Actor actor) {
+            	// print a message to the console when clicked (used for debugging)
                 System.out.println("Start game clicked!");
-                // You could swap some internal state here to go to gameplay
+                // you could swap some internal state here to go to gameplay
             }
-        });
+        }); // close the listener
 
+        // add a click listener to the exit button
         exitButton.addListener(new ChangeListener() {
+        	// override the changed method for the exit button
             @Override
             public void changed(ChangeEvent event, Actor actor) {
+            	// close the application when the exit button is clicked
                 Gdx.app.exit();
             }
-        });
+        }); // close the listener
     }
 
+    // override the render method, called every frame (~60 fps)
     @Override
     public void render() {
+    	// set the clear color to black (rgb = 0, alpha = 1)
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+        
+        // clear the screen with the clear color (black) before drawing the next frame
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        // update the stage and all its actors based on the time elapsed since the last frame
         stage.act(Gdx.graphics.getDeltaTime());
+        
+        // render the stage and all its UI elements to the screen
         stage.draw();
-    }
+    } // close render method
 
+    // override the resize method, called when the window is resized
     @Override
     public void resize(int width, int height) {
+    	// update viewport to the new window size while maintaining aspect ratio (true = center camera)
         stage.getViewport().update(width, height, true);
-    }
+    } // close resize method
 
+    // override the dispose method, called when the application closes
     @Override
     public void dispose() {
+    	// free memory used by the stage
         stage.dispose();
+        // free memory used by the skin (textures, fonts, etc.)
         skin.dispose();
-    }
-}
+    } // close the dispose method
+} // end of class
