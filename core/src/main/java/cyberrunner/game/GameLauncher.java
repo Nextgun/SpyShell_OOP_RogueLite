@@ -6,24 +6,15 @@ import com.badlogic.gdx.ApplicationAdapter;
 
 // imports the main libGDX utility class that provides access to graphics, input, files, etc
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 
 // imports openGL constants (i.e. GL_COLOR_BUFFER_BIT used for clearing the screen)
 import com.badlogic.gdx.graphics.GL20;
 
-// imports Stage, which manages and renders a scene graph of UI actors
 import com.badlogic.gdx.scenes.scene2d.Stage;
 
-// imports Label for displaying text
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-
-// imports Skin, which defines the visual style (fonts, colors, textures) for UI elements
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-
-// imports Table, a layout container that arranges UI elements in rows and columns 
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-
-// imports TextButton, a clickable button with text
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+//imports scene2d for ui elements
+import com.badlogic.gdx.scenes.scene2d.ui.*;
 
 // imports ChangeListener for handling UI events like button clicks
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
@@ -43,6 +34,16 @@ public class GameLauncher extends ApplicationAdapter {
     // declares a field to hold the UI skin (visual styling)
     private Skin skin;
 
+    // stage management
+    private enum MenuState { MAIN, OPTIONS }
+    private MenuState currentState = MenuState.MAIN;
+    
+    // keybind settings
+    private int moveLeftKey = Input.Keys.A; 
+    private int moveRightKey = Input.Keys.D; 
+    private int moveUpKey = Input.Keys.W; 
+    private int moveDownKey = Input.Keys.S; 
+    
     // overrides the create method, called once when the application starts
     // overriding is when a subclass provides a specific implementation for a method that
     // is already defined in its parent class
@@ -58,11 +59,20 @@ public class GameLauncher extends ApplicationAdapter {
         // load the UI skin definition from a JSON file that defines button styles fonts etc
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
 
+        showMainMenu();
+    }
+    
+    private void showMainMenu() {
+    	
+    	currentState = MenuState.MAIN;
+    	stage.clear();
+    	
         // create a new Table to organize UI elements in a grid layout
         Table table = new Table();
-        
+    	
         // make the table fill the entire stage (centered layout)
         table.setFillParent(true);
+    	
         
         // add the table to the stage so it will be rendered and receive input
         stage.addActor(table);
@@ -77,7 +87,7 @@ public class GameLauncher extends ApplicationAdapter {
         table.add(title).padBottom(40).row();
 
         // create a button displaying "START GAME", "OPTIONS", and "EXIT" text 
-        TextButton startButton = new TextButton("PAUSED", skin);
+        TextButton startButton = new TextButton("START GAME", skin);
         TextButton optionsButton = new TextButton("OPTIONS", skin);
         TextButton exitButton = new TextButton("EXIT", skin);
 
@@ -88,8 +98,8 @@ public class GameLauncher extends ApplicationAdapter {
 
         // add each button to table with width of 250 pixels, 10 pixels padding on all sides
         table.add(startButton).width(250).pad(10).row();
-        //table.add(optionsButton).width(250).pad(10).row();
-        //table.add(exitButton).width(250).pad(10).row();
+        table.add(optionsButton).width(250).pad(10).row();
+        table.add(exitButton).width(250).pad(10).row();
 
         // add a click listener to the start button
         startButton.addListener(new ChangeListener() {
@@ -102,6 +112,18 @@ public class GameLauncher extends ApplicationAdapter {
             }
         }); // close the listener
 
+     // add a click listener to the options button
+        optionsButton.addListener(new ChangeListener() {
+        	// override the changed method, called when the button is clicked
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+            	// print a message to the console when clicked (used for debugging)
+                System.out.println("Options clicked!");
+                showOptionsMenu();
+                // you could swap some internal state here to go to gameplay
+            }
+        }); // close the listener
+        
         // add a click listener to the exit button
         exitButton.addListener(new ChangeListener() {
         	// override the changed method for the exit button
@@ -111,8 +133,108 @@ public class GameLauncher extends ApplicationAdapter {
                 Gdx.app.exit();
             }
         }); // close the listener
-    }
-
+    } // end of showMainMenu
+    
+    private void showOptionsMenu() {
+    	currentState = MenuState.OPTIONS;
+    	stage.clear();
+    	
+        // create a new Table to organize UI elements in a grid layout
+    	Table table = new Table();
+    	
+        // make the table fill the entire stage (centered layout)
+    	table.setFillParent(true);
+    	
+    	stage.addActor(table);
+    	
+    	// create a text label displaying the title using the loaded skin's style
+        Label title = new Label("OPTIONS", skin);
+        title.setFontScale(2f);
+        table.add(title).padBottom(40).row();
+    	
+        // change keybind settings
+        Label controlsHeader = new Label("CONTROLS", skin);
+        controlsHeader.setFontScale(1.5f);
+        table.add(controlsHeader).colspan(2).padTop(20).padBottom(10).row();
+    } // end of options
+        // move left
+    
+        /*table.add(new Label("Move Left:", skin)).padRight(10);
+        final TextButton moveLeftButton = new TextButton(Input.Keys.toString(moveLeftKey), skin);
+        moveLeftButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                moveLeftButton.setText("Press key...");
+                waitForKeyPress(moveLeftButton, new KeybindCallback() {
+                    @Override
+                    public void onKeySet(int keycode) {
+                        moveLeftKey = keycode;
+                        moveLeftButton.setText(Input.Keys.toString(keycode));
+                    }
+                });
+            }
+        });
+        table.add(moveLeftButton).width(150).row();
+        
+        // move right
+        table.add(new Label("Move Right:", skin)).padRight(10);
+        final TextButton moveRightButton = new TextButton(Input.Keys.toString(moveRightKey), skin);
+        moveRightButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                moveRightButton.setText("Press key...");
+                waitForKeyPress(moveRightButton, new KeybindCallback() {
+                    @Override
+                    public void onKeySet(int keycode) {
+                        moveRightKey = keycode;
+                        moveRightButton.setText(Input.Keys.toString(keycode));
+                    }
+                });
+            }
+        });
+        table.add(moveRightButton).width(150).row();
+    
+        // move up
+        table.add(new Label("Move Up:", skin)).padRight(10);
+        final TextButton moveUpButton = new TextButton(Input.Keys.toString(moveUpKey), skin);
+        moveRightButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                moveRightButton.setText("Press key...");
+                waitForKeyPress(moveUpButton, new KeybindCallback() {
+                    @Override
+                    public void onKeySet(int keycode) {
+                        moveUpKey = keycode;
+                        moveUpButton.setText(Input.Keys.toString(keycode));
+                    }
+                });
+            }
+        });
+        table.add(moveUpButton).width(150).row();
+    	
+        // move up
+        table.add(new Label("Move Down:", skin)).padRight(10);
+        final TextButton moveDownButton = new TextButton(Input.Keys.toString(moveDownKey), skin);
+        moveDownButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                moveDownButton.setText("Press key...");
+                waitForKeyPress(moveUpButton, new KeybindCallback() {
+                    @Override
+                    public void onKeySet(int keycode) {
+                        moveDownKey = keycode;
+                        moveDownButton.setText(Input.Keys.toString(keycode));
+                    }
+                });
+            }
+        });
+        table.add(moveDownButton).width(150).row();
+    }*/
+  
+    
+    
+    
+    
     // override the render method, called every frame (~60 fps)
     @Override
     public void render() {
@@ -145,3 +267,46 @@ public class GameLauncher extends ApplicationAdapter {
         skin.dispose();
     } // close the dispose method
 } // end of class
+/*
+private interface KeybindCallback {
+    void onKeySet(int keycode);
+}
+*/
+
+/*
+private TextButton currentKeybindButton = null;
+private KeybindCallback currentKeybindCallback = null;
+
+private void waitForKeyPress(TextButton button, KeybindCallback callback) {
+    currentKeybindButton = button;
+    currentKeybindCallback = callback;
+    
+    // Create a temporary input processor to capture the next key press
+    stage.setKeyboardFocus(null);
+    Gdx.input.setInputProcessor(new com.badlogic.gdx.InputAdapter() {
+        @Override
+        public boolean keyDown(int keycode) {
+            if (keycode != Input.Keys.ESCAPE) {
+                currentKeybindCallback.onKeySet(keycode);
+            } else {
+                currentKeybindButton.setText(Input.Keys.toString(moveLeftKey));
+            }
+            currentKeybindButton = null;
+            currentKeybindCallback = null;
+            Gdx.input.setInputProcessor(stage);
+            return true;
+        }
+    });
+}
+*/
+
+/*
+// Getter methods for your game to access settings
+public int getMoveLeftKey() { return moveLeftKey; }
+public int getMoveRightKey() { return moveRightKey; }
+public int getJumpKey() { return jumpKey; }
+public int getSlideKey() { return slideKey; }
+public float getMusicVolume() { return musicVolume; }
+public float getSfxVolume() { return sfxVolume; }
+
+*/
