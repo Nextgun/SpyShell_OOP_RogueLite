@@ -35,7 +35,7 @@ public class GameLauncher extends ApplicationAdapter {
     private Skin skin;
 
     // stage management
-    private enum MenuState { MAIN, OPTIONS }
+    private enum MenuState { MAIN, OPTIONS, PAUSE, GAME_OVER, YOU_WON }
     private MenuState currentState = MenuState.MAIN;
     
     // keybind settings
@@ -161,6 +161,140 @@ public class GameLauncher extends ApplicationAdapter {
         table.add(controlsHeader).colspan(2).padTop(20).padBottom(10).row();
     } // end of options
     
+    private void showPauseMenu() {
+        currentState = MenuState.PAUSE;
+        stage.clear();
+
+        Table table = new Table();
+        table.setFillParent(true);
+        stage.addActor(table);
+
+        Label title = new Label("PAUSED", skin);
+        title.setFontScale(2f);
+        table.add(title).padBottom(40).row();
+
+        TextButton resumeButton = new TextButton("RESUME", skin);
+        TextButton restartButton = new TextButton("RESTART GAME", skin);
+        TextButton mainMenuButton = new TextButton("MAIN MENU", skin);
+
+        table.add(resumeButton).width(250).pad(10).row();
+        table.add(restartButton).width(250).pad(10).row();
+        table.add(mainMenuButton).width(250).pad(10).row();
+
+        resumeButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                System.out.println("Resuming game...");
+                // UNPAUSE GAME LOGIC CODE GOES HERE
+                // NEED TO CHECK WITH MARTIN'S CODE TO INTEGRATE
+                // THE RETURN TO THE GAMEPLAY LOOP
+            }
+        });
+
+        restartButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                System.out.println("Restart clicked!");
+                // CALL THE ENEMYSANDBOXAPP TO RESTART THE GAMELOOP VARIABLES ETC ALL BACK TO THE BEGINNING
+            }
+        });
+
+        mainMenuButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                showMainMenu();
+            }
+        });
+    } // END OF SHOWPAUSEMENU
+    
+    private void showGameOverMenu() {
+        currentState = MenuState.GAME_OVER;
+        stage.clear();
+
+        Table table = new Table();
+        table.setFillParent(true);
+        stage.addActor(table);
+
+        Label title = new Label("GAME OVER", skin);
+        title.setFontScale(2f);
+        table.add(title).padBottom(40).row();
+
+        TextButton restartButton = new TextButton("RESTART", skin);
+        TextButton mainMenuButton = new TextButton("MAIN MENU", skin);
+        TextButton exitButton = new TextButton("EXIT", skin);
+
+        table.add(restartButton).width(250).pad(10).row();
+        table.add(mainMenuButton).width(250).pad(10).row();
+        table.add(exitButton).width(250).pad(10).row();
+
+        restartButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                System.out.println("Restarting game...");
+                // RESTART HERE
+            }
+        });
+
+        mainMenuButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                showMainMenu();
+            }
+        });
+
+        exitButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Gdx.app.exit();
+            }
+        });
+    } // end of showGameOverMenu
+    
+    // START OF SHOWYOUWONMENU
+    private void showYouWonMenu() {
+        currentState = MenuState.YOU_WON;
+        stage.clear();
+
+        Table table = new Table();
+        table.setFillParent(true);
+        stage.addActor(table);
+
+        Label title = new Label("YOU WON!", skin);
+        title.setFontScale(2f);
+        table.add(title).padBottom(40).row();
+
+        TextButton playAgainButton = new TextButton("PLAY AGAIN", skin);
+        TextButton mainMenuButton = new TextButton("MAIN MENU", skin);
+        TextButton exitButton = new TextButton("EXIT", skin);
+
+        table.add(playAgainButton).width(250).pad(10).row();
+        table.add(mainMenuButton).width(250).pad(10).row();
+        table.add(exitButton).width(250).pad(10).row();
+
+        playAgainButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                System.out.println("Play again clicked!");
+                // RESTART BACK TO GAMEPLAY LOOP 
+                // MAYBE VIEW SCORES OPTION SHOULD BE INCLUDED IN THIS MENU?
+            }
+        });
+
+        mainMenuButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                showMainMenu();
+            }
+        });
+
+        exitButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Gdx.app.exit();
+            }
+        });
+    } // END OF showYouWonMenu
+  
  // override the render method, called every frame (~60 fps)
     @Override
     public void render() {
@@ -194,6 +328,35 @@ public class GameLauncher extends ApplicationAdapter {
     } // close the dispose method
 } // end of class
 
+
+
+// 11 4 2025 NOTES FROM AYESHA: 
+// THE BELOW COMMENTED-OUT CODE IS FOR THE REBINDING OPTION IN THE OPTIONS MENU.
+// NEED TO CONFIGURE WITH MARTIN'S CODE TO INTEGRATE INTO THE REST OF THE GAME. 
+// ADDITIONAL THINGS NEEDED TO DO:
+// the gameplay class seems to be EnemySandboxApp. 
+// need to put in function calls to these menu options within the main gameplay loop.
+// i.e. pressing the key ESC --> we call showPauseMenu
+// it will look something like this: 
+// // Inside EnemySandboxApp when the player presses ESC:
+// if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+//    gameLauncher.showPauseMenu();
+//}
+// WHEN PLAYER HEALTH = 0 -> CALL SHOWGAMEOVERMENU
+// WHEN WIN CONDITION MET -> CALL SHOWYOUWONMENU
+// 
+// the critical thing to do next is to make these transitions between the menu screens and gameplay.
+// need to understand martin's code to do that.
+// will comment this class as per demir's standards. 
+// will also properly rename this class into MenuScreens class.
+// no need to have it in the gamelauncher or whatever is going on here. 
+// fix this mess. 
+// integrate to martin's code.
+// comment. 
+// refactor and clean as needed.
+// END OF 11 4 2025 NOTES FROM AYESHA
+
+// POTENTIAL KEY BINDING CLASs: 
 
         // move left
     
@@ -289,7 +452,7 @@ private void waitForKeyPress(TextButton button, KeybindCallback callback) {
     currentKeybindButton = button;
     currentKeybindCallback = callback;
     
-    // Create a temporary input processor to capture the next key press
+    // create a temporary input processor to capture the next key press
     stage.setKeyboardFocus(null);
     Gdx.input.setInputProcessor(new com.badlogic.gdx.InputAdapter() {
         @Override
@@ -309,7 +472,7 @@ private void waitForKeyPress(TextButton button, KeybindCallback callback) {
 */
 
 /*
-// Getter methods for your game to access settings
+// GETTER METHDODS TO ACCESS SETTINGS ? 
 public int getMoveLeftKey() { return moveLeftKey; }
 public int getMoveRightKey() { return moveRightKey; }
 public int getJumpKey() { return jumpKey; }
