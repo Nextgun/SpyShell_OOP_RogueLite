@@ -1,4 +1,12 @@
-//EnemySandboxApp.java
+// Author: Martin Taylor
+// File: EnemySandboxApp.java
+// Date: 2025-11-04
+// Description:
+//   Enemy sandbox with a controllable player (WASD, SHIFT dash, SPACE melee),
+//   coins, 25% health orbs, arrows, bombs, and four enemy types.
+//   Uses EnemyContext so enemies (e.g., Archer/Berserker) can perform their
+//   own logic without the game loop micromanaging them.
+
 package cyberrunner.Enemys;
 
 import com.badlogic.gdx.ApplicationAdapter;
@@ -19,76 +27,63 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 
-/**
- * Enemy sandbox with player (WASD + smooth dash on SHIFT + SPACE melee),
- * coins, 25% health orbs, and enemies:
- *  - Goblin/Hobgoblin (melee chasers),
- *  - Archer (bows + arrows),
- *  - Bomber (drops ticking bomb on hit/death),
- *  - Berserker (approach -> short charge -> straight dash with single-hit).
- *
- * This version adds:
- *  - Per-axis enemy movement and collision resolution (slide along walls),
- *  - Tiny “stuck” recovery nudge + quick repath,
- *  - Sword-swing de-dupe,
- *  - Goblin/Hobgoblin tusks,
- *  - Archer shooting restored (wind-up + fire).
- */
+import cyberrunner.Enemys.Berserker.State;
+
 public class EnemySandboxApp extends ApplicationAdapter {
 
     // ------------------------------------------------------------------------
     // Core
     // ------------------------------------------------------------------------
-    private SpriteBatch batch;
-    private OrthographicCamera camera;
-    private BitmapFont font;
-    private final GlyphLayout glyph = new GlyphLayout();
+    private SpriteBatch spriteBatch;
+    private OrthographicCamera worldCamera;
+    private BitmapFont hudFont;
+    private final GlyphLayout glyphLayout = new GlyphLayout();
 
     private Dungeon dungeon;
     private final int TILE_SIZE = 64;
 
     // Textures
-    private Texture whiteTex, floorTex, wallTex;
-    private Texture playerBodyTex, goblinBodyTex, hobgoblinBodyTex, archerBodyTex, bomberBodyTex, berserkerBodyTex;
-    private Texture orbTex, coinTex, arrowTex;
+    private Texture whiteTexture, floorTexture, wallTexture;
+    private Texture playerBodyTexture, goblinBodyTexture, hobgoblinBodyTexture, archerBodyTexture, bomberBodyTexture, berserkerBodyTexture;
+    private Texture orbTexture, coinTexture, arrowTexture;
 
     // Faces drawing helper
-    private Sprite rotSprite;
+    private Sprite rotatedSprite;
 
     // Sizes (ellipse bodies)
     private static class TextureSize { int w,h; TextureSize(int w,int h){this.w=w; this.h=h;} }
-    private final TextureSize goblinSz   = new TextureSize(56, 56);
-    private final TextureSize hobSz      = new TextureSize(72, 72);
-    private final TextureSize archerSz   = new TextureSize(60, 60);
-    private final TextureSize bomberSz   = new TextureSize(60, 60);
-    private final TextureSize berserkSz  = new TextureSize(72, 72); // match hobgoblin size to reduce snagging
+    private final TextureSize goblinSize   = new TextureSize(56, 56);
+    private final TextureSize hobgoblinSize= new TextureSize(72, 72);
+    private final TextureSize archerSize   = new TextureSize(60, 60);
+    private final TextureSize bomberSize   = new TextureSize(60, 60);
+    private final TextureSize berserkerSize= new TextureSize(72, 72); // match hobgoblin size to reduce snagging
 
     // ------------------------------------------------------------------------
     // Player
     // ------------------------------------------------------------------------
     private Rectangle playerBounds;
-    private float playerSpeed = 280f;
+    private float playerMoveSpeed = 280f;
     private final int playerHealthMax = 100;
     private int playerHealth = playerHealthMax;
 
     private float hitFlashTimer = 0f;
     private final float hitFlashDuration = 0.12f;
 
-    private float lastDirX = 0f, lastDirY = 1f;
+    private float lastMoveDirX = 0f, lastMoveDirY = 1f;
 
     // Eyes / brows
     private float playerBlinkTimer = 0f;
-    private float playerBlinkDur   = 0f;
+    private float playerBlinkDuration = 0f;
     private final float BLINK_MIN  = 2.6f, BLINK_MAX = 5.2f, BLINK_DUR = 0.11f;
-    private boolean attackBrows = false;
+    private boolean showAttackBrows = false;
 
     // Dash (cooldown + smooth interpolation)
-    private final float dashCooldown = 5f;
-    private float dashCdTimer = 0f;
-    private final float dashDistance = 220f;
+    private final float dashCooldownSeconds = 5f;
+    private float dashCooldownTimer = 0f;
+    private final float dashDistancePixels = 220f;
     private boolean isDashing = false;
     private float dashAnimT = 0f;
-    private final float dashAnimDur = 0.12f;
+    private final float dashAnimDuration = 0.12f;
     private float dashStartX, dashStartY, dashEndX, dashEndY;
 
     // Melee (hit-boxed, swats arrows)
@@ -98,7 +93,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private final float meleeCooldown   = 0.25f;
     private float   meleeCooldownTimer  = 0f;
     private final float meleeRange = 72f;
-    private final float meleeSize  = 96f;
+    private final float meleeBoxSize  = 96f;
     private final Color meleeTint  = new Color(1f, 1f, 0.5f, 0.30f);
     private final Rectangle meleeBox = new Rectangle();
 
@@ -107,7 +102,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private int currentSwingId = -1;
 
     // Simple sword arc (visual only)
-    private Texture swordTex;
+    private Texture swordTexture;
     private Sprite  swordSprite;
     private final float SWORD_W = 64f, SWORD_H = 12f;
     private float swingTimer = 0f, swingTotal = 0.14f, swingArcDeg = 65f;
@@ -117,15 +112,12 @@ public class EnemySandboxApp extends ApplicationAdapter {
     // Enemies & projectiles & drops
     // ------------------------------------------------------------------------
     private final Array<Enemy> enemies = new Array<>();
-    private final ObjectMap<Enemy, PathState> paths = new ObjectMap<>();
+    private final ObjectMap<Enemy, PathState> pathing = new ObjectMap<>();
 
     // Arrows
     private final Array<Arrow> arrows = new Array<>();
     private final int   arrowDamage = 3;
     private final float arrowSpeed  = 420f;
-    private final float archerFireInterval = 1.4f;
-    private final ObjectMap<Archer, Float> archerDrawT = new ObjectMap<>();
-    private final float archerDrawWindup = 0.35f;
 
     // Bombs
     private final Array<Bomb> bombs = new Array<>();
@@ -147,14 +139,14 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private float spawnInterval = 2.5f;
     private float spawnTimer    = 0f;
 
-    // Pathing helpers
+    // Pathing helpers (used for simple melee enemies; Archer/Berserker self-drive)
     private static class PathState {
         final Array<Vector2> waypoints = new Array<>();
         int current = 0;
         float repathTimer = 0f;
         int lastTargetTx = Integer.MIN_VALUE, lastTargetTy = Integer.MIN_VALUE;
 
-        // STUCK RECOVERY STATE
+        // Stuck recovery
         float lastX, lastY;
         float stillTimer = 0f;
         float nudgeCooldown = 0f;
@@ -163,7 +155,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
 
     // Inset collision rect for enemies to reduce snag
     private static final float ENEMY_COLLISION_INSET = 12f;
-    private final Rectangle tmpCollRect = new Rectangle();
+    private final Rectangle tmpCollisionRect = new Rectangle();
 
     // Stuck recovery tuning
     private static final float STUCK_SPEED_EPS       = 0.25f;
@@ -181,38 +173,64 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private enum FaceStyle { PLAYER_SMILE, GOBLIN_DEVIOUS, HOB_DEVIOUS, ARCHER_MASK, BOMBER_ANGRY, BERSERKER_HELM }
 
     // ------------------------------------------------------------------------
+    // EnemyContext wiring (world hooks for enemies)
+    // ------------------------------------------------------------------------
+    private final EnemyContext enemyCtx = new EnemyContext() {
+        @Override public Vector2 getPlayerCenter() {
+            return new Vector2(
+                playerBounds.x + playerBounds.width  * 0.5f,
+                playerBounds.y + playerBounds.height * 0.5f
+            );
+        }
+        @Override public Rectangle getPlayerBounds() { return playerBounds; }
+        @Override public boolean isBlocked(Rectangle worldRect) { return dungeon.rectBlocked(worldRect); }
+        @Override public Vector2 nearestOpen(Vector2 worldPos, int maxRadiusTiles) {
+            float[] p = dungeon.nearestOpen(worldPos.x, worldPos.y, maxRadiusTiles);
+            return new Vector2(p[0], p[1]);
+        }
+        @Override public void spawnArrow(Texture tex, Vector2 origin, Vector2 velocity, int damage) {
+            // Use the sandbox's arrow texture/sizing; ignore tex if you want unified visuals
+            arrows.add(new Arrow(arrowTexture, origin.x, origin.y, 18f, 6f, velocity.x, velocity.y, damage));
+        }
+        @Override public void spawnBomb(Vector2 center) { dropBombAt(center.x, center.y); }
+        @Override public void damagePlayer(int amount) { playerTakeDamage(amount); }
+        @Override public float getTileSize() { return TILE_SIZE; }
+        @Override public boolean hasLineOfSight(Vector2 a, Vector2 b) { return hasLineOfSight(a.x, a.y, b.x, b.y); }
+    };
+
+    // ------------------------------------------------------------------------
     // LibGDX lifecycle
     // ------------------------------------------------------------------------
     @Override public void create() {
-        batch = new SpriteBatch();
-        font  = new BitmapFont();
+        spriteBatch = new SpriteBatch();
+        hudFont  = new BitmapFont();
 
         float W = Gdx.graphics.getWidth();
         float H = Gdx.graphics.getHeight();
 
-        camera = new OrthographicCamera();
-        camera.setToOrtho(false, W, H);
-        camera.zoom = 1.4f;
+        worldCamera = new OrthographicCamera();
+        worldCamera.setToOrtho(false, W, H);
+        worldCamera.zoom = 1.4f;
 
-        whiteTex = makeSolidTexture(1,1, Color.WHITE);
-        floorTex = makeSolidTexture(TILE_SIZE, TILE_SIZE, new Color(0.18f, 0.18f, 0.22f, 1f));
-        wallTex  = makeStoneWallTexture(TILE_SIZE);
-        orbTex   = makeSolidTexture(16,16, new Color(0.85f,0.2f,0.25f,1f));
-        coinTex  = makeCoinTexture();
-        arrowTex = makeSolidTexture(18, 6, new Color(0.95f, 0.9f, 0.2f, 1f));
-        rotSprite = new Sprite(whiteTex);
+        whiteTexture = makeSolidTexture(1,1, Color.WHITE);
+        floorTexture = makeSolidTexture(TILE_SIZE, TILE_SIZE, new Color(0.18f, 0.18f, 0.22f, 1f));
+        wallTexture  = makeStoneWallTexture(TILE_SIZE);
+        orbTexture   = makeSolidTexture(16,16, new Color(0.85f,0.2f,0.25f,1f));
+        coinTexture  = makeCoinTexture();
+        arrowTexture = makeSolidTexture(18, 6, new Color(0.95f, 0.9f, 0.2f, 1f));
+        rotatedSprite = new Sprite(whiteTexture);
 
         // Bodies (circles)
-        playerBodyTex    = makeEllipseTexture(64, 64, new Color(0.20f, 0.50f, 1f, 1f));
-        goblinBodyTex    = makeEllipseTexture(goblinSz.w, goblinSz.h, new Color(0.20f, 0.80f, 0.20f, 1f));
-        hobgoblinBodyTex = makeEllipseTexture(hobSz.w,    hobSz.h,    new Color(0.95f, 0.60f, 0.20f, 1f));
-        archerBodyTex    = makeEllipseTexture(archerSz.w, archerSz.h, new Color(0.60f, 0.40f, 0.90f, 1f));
-        bomberBodyTex    = makeEllipseTexture(bomberSz.w, bomberSz.h, new Color(0.90f, 0.10f, 0.10f, 1f));
-        berserkerBodyTex = makeEllipseTexture(berserkSz.w, berserkSz.h, new Color(0.98f, 0.90f, 0.15f, 1f));
+        playerBodyTexture    = makeEllipseTexture(64, 64, new Color(0.20f, 0.50f, 1f, 1f));
+        goblinBodyTexture    = makeEllipseTexture(goblinSize.w, goblinSize.h, new Color(0.20f, 0.80f, 0.20f, 1f));
+        hobgoblinBodyTexture = makeEllipseTexture(hobgoblinSize.w, hobgoblinSize.h, new Color(0.95f, 0.60f, 0.20f, 1f));
+        archerBodyTexture    = makeEllipseTexture(archerSize.w, archerSize.h, new Color(0.60f, 0.40f, 0.90f, 1f));
+        bomberBodyTexture    = makeEllipseTexture(bomberSize.w, bomberSize.h, new Color(0.90f, 0.10f, 0.10f, 1f));
+        berserkerBodyTexture = makeEllipseTexture(berserkerSize.w, berserkerSize.h, new Color(0.98f, 0.90f, 0.15f, 1f));
 
         // Sword sprite
-        swordTex = makeSwordTexture();
-        swordSprite = new Sprite(swordTex);
+        swordTexture = makeSwordTexture();
+        swordSprite = new Sprite(swordTexture);
         swordSprite.setSize(SWORD_W, SWORD_H);
         swordSprite.setOrigin(12f, SWORD_H/2f);
 
@@ -241,7 +259,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
     @Override public void render() {
         float dt = Gdx.graphics.getDeltaTime();
 
-        if (dashCdTimer > 0f) dashCdTimer -= dt;
+        if (dashCooldownTimer > 0f) dashCooldownTimer -= dt;
         updatePlayerBlink(dt);
 
         handleMovement(dt);
@@ -264,92 +282,82 @@ public class EnemySandboxApp extends ApplicationAdapter {
         // draw
         Gdx.gl.glClearColor(0.08f, 0.08f, 0.10f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-        batch.setProjectionMatrix(camera.combined);
+        spriteBatch.setProjectionMatrix(worldCamera.combined);
 
-        batch.begin();
-        dungeon.render(batch, floorTex, wallTex, viewLeft(), viewBottom(), viewWidth(), viewHeight());
+        spriteBatch.begin();
+        dungeon.render(spriteBatch, floorTexture, wallTexture, viewLeft(), viewBottom(), viewWidth(), viewHeight());
 
-        // orbs below coins (so coins render on top)
-        for (Orb o : orbs) o.render(batch);
-        for (Coin c : coins) c.render(batch);
+        // coins & orbs (orbs below coins)
+        for (Coin c : coins) c.render(spriteBatch);
+        for (Orb o : orbs) o.render(spriteBatch);
 
-        renderBombs(batch);
+        renderBombs(spriteBatch);
 
         if (meleeActive) {
-            batch.setColor(meleeTint);
-            batch.draw(whiteTex, meleeBox.x, meleeBox.y, meleeBox.width, meleeBox.height);
-            batch.setColor(Color.WHITE);
+            spriteBatch.setColor(meleeTint);
+            spriteBatch.draw(whiteTexture, meleeBox.x, meleeBox.y, meleeBox.width, meleeBox.height);
+            spriteBatch.setColor(Color.WHITE);
         }
 
         // Player tint on hit
         if (hitFlashTimer > 0f) {
             float t = MathUtils.clamp(hitFlashTimer / hitFlashDuration, 0f, 1f);
-            batch.setColor(1f, 0.3f + 0.7f*(1f - t), 0.3f + 0.7f*(1f - t), 1f);
+            spriteBatch.setColor(1f, 0.3f + 0.7f*(1f - t), 0.3f + 0.7f*(1f - t), 1f);
         }
-        batch.draw(playerBodyTex, playerBounds.x, playerBounds.y, playerBounds.width, playerBounds.height);
-        batch.setColor(Color.WHITE);
+        spriteBatch.draw(playerBodyTexture, playerBounds.x, playerBounds.y, playerBounds.width, playerBounds.height);
+        spriteBatch.setColor(Color.WHITE);
 
         drawFaceOverlay(FaceStyle.PLAYER_SMILE,
                 playerBounds.x, playerBounds.y, playerBounds.width, playerBounds.height,
-                (playerBlinkDur > 0f), attackBrows);
+                (playerBlinkDuration > 0f), showAttackBrows);
 
         if (meleeActive) drawSwordSwing();
 
         // Enemies
         for (Enemy e : enemies) {
             Rectangle rb = e.getBoundingBox();
-            float jx=0f, jy=0f;
+            float shakeX=0f, shakeY=0f;
             if (e instanceof Berserker) {
                 Berserker b = (Berserker)e;
-                if (b.state == Berserker.State.CHARGING) {
-                    float t = time()*28f + b.shakeSeed;
+                if (b.state == State.CHARGING) {
+                    float t = time()*28f;
                     float amp = 4f;
-                    jx = MathUtils.sin(t)*amp;
-                    jy = MathUtils.cos(t*1.37f)*amp;
+                    shakeX = MathUtils.sin(t)*amp;
+                    shakeY = MathUtils.cos(t*1.37f)*amp;
                 }
             }
-            batch.draw(bodyFor(e), rb.x + jx, rb.y + jy, rb.width, rb.height);
+            spriteBatch.draw(bodyFor(e), rb.x + shakeX, rb.y + shakeY, rb.width, rb.height);
+
             boolean blink = false;
             float phase = ((System.identityHashCode(e) & 1023)*0.013f) + (time()*0.22f);
             if ((int)(phase) % 7 == 0 && (phase - Math.floor(phase)) < 0.06f) blink = true;
 
-            drawFaceOverlay(styleFor(e), rb.x + jx, rb.y + jy, rb.width, rb.height, blink,
-                    (e instanceof Berserker) && ((Berserker)e).state == Berserker.State.CHARGING);
-
-            if (e instanceof Archer) drawArcherBow((Archer)e);
-
-            // tiny HP label over Berserkers for debugging
-            if (e instanceof Berserker) {
-                Rectangle rb2 = e.getBoundingBox();
-                font.draw(batch,
-                        String.valueOf(e.getHealth()),
-                        rb2.x + rb2.width * 0.5f - 4f,
-                        rb2.y + rb2.height + 12f);
-            }
+            drawFaceOverlay(styleFor(e), rb.x + shakeX, rb.y + shakeY, rb.width, rb.height, blink,
+                    (e instanceof Berserker) && ((Berserker)e).state == State.CHARGING);
         }
 
-        for (Arrow a : arrows) a.render(batch);
-        batch.end();
+        for (Arrow a : arrows) a.render(spriteBatch);
+        spriteBatch.end();
 
         drawHUD();
     }
 
     @Override public void dispose() {
-        if (batch!=null) batch.dispose();
-        if (font !=null) font.dispose();
-        if (whiteTex!=null) whiteTex.dispose();
-        if (floorTex!=null) floorTex.dispose();
-        if (wallTex !=null) wallTex.dispose();
-        if (playerBodyTex!=null) playerBodyTex.dispose();
-        if (goblinBodyTex !=null) goblinBodyTex.dispose();
-        if (hobgoblinBodyTex!=null) hobgoblinBodyTex.dispose();
-        if (archerBodyTex !=null) archerBodyTex.dispose();
-        if (bomberBodyTex!=null) bomberBodyTex.dispose();
-        if (berserkerBodyTex!=null) berserkerBodyTex.dispose();
-        if (orbTex!=null) orbTex.dispose();
-        if (coinTex!=null) coinTex.dispose();
-        if (arrowTex!=null) arrowTex.dispose();
-        if (swordTex!=null) swordTex.dispose();
+        if (spriteBatch!=null) spriteBatch.dispose();
+        if (hudFont !=null) hudFont.dispose();
+        if (whiteTexture!=null) whiteTexture.dispose();
+        if (floorTexture!=null) floorTexture.dispose();
+        if (wallTexture !=null) wallTexture.dispose();
+        if (playerBodyTexture!=null) playerBodyTexture.dispose();
+        if (goblinBodyTexture !=null) goblinBodyTexture.dispose();
+        if (hobgoblinBodyTexture!=null) hobgoblinBodyTexture.dispose();
+        if (archerBodyTexture !=null) archerBodyTexture.dispose();
+        if (bomberBodyTexture!=null) bomberBodyTexture.dispose();
+        if (berserkerBodyTexture!=null) berserkerBodyTexture.dispose();
+        if (orbTexture!=null) orbTexture.dispose();
+        if (coinTexture!=null) coinTexture.dispose();
+        if (arrowTexture!=null) arrowTexture.dispose();
+        if (swordTexture!=null) swordTexture.dispose();
     }
 
     // ------------------------------------------------------------------------
@@ -366,9 +374,9 @@ public class EnemySandboxApp extends ApplicationAdapter {
 
         float len = (float)Math.sqrt(vx*vx+vy*vy);
         if (len > 0f) {
-            lastDirX = vx/len; lastDirY = vy/len;
-            float dx = lastDirX * playerSpeed * dt;
-            float dy = lastDirY * playerSpeed * dt;
+            lastMoveDirX = vx/len; lastMoveDirY = vy/len;
+            float dx = lastMoveDirX * playerMoveSpeed * dt;
+            float dy = lastMoveDirY * playerMoveSpeed * dt;
 
             float oldX = playerBounds.x, oldY = playerBounds.y;
             playerBounds.x += dx;
@@ -381,16 +389,16 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private void handleDash() {
         boolean pressed = Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)
                        || Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_RIGHT);
-        if (!pressed || dashCdTimer>0f || isDashing) return;
+        if (!pressed || dashCooldownTimer>0f || isDashing) return;
 
-        float dx = lastDirX, dy = lastDirY;
+        float dx = lastMoveDirX, dy = lastMoveDirY;
         if (Math.abs(dx)<1e-5f && Math.abs(dy)<1e-5f) { dx=0f; dy=1f; }
         float len = (float)Math.sqrt(dx*dx + dy*dy);
         dx/=len; dy/=len;
 
         // “sweep” forward and stop before collisions
         float step = 8f;
-        int steps = Math.max(1, (int)(dashDistance/step));
+        int steps = Math.max(1, (int)(dashDistancePixels/step));
         float ox = playerBounds.x, oy = playerBounds.y;
         float curX = ox, curY = oy;
         Rectangle test = new Rectangle(playerBounds);
@@ -411,13 +419,13 @@ public class EnemySandboxApp extends ApplicationAdapter {
         playerBounds.x = ox; playerBounds.y = oy;
         dashAnimT = 0f;
         isDashing = true;
-        dashCdTimer = dashCooldown;
+        dashCooldownTimer = dashCooldownSeconds;
     }
 
     private void updateDashAnim(float dt){
         if (!isDashing) return;
         dashAnimT += dt;
-        float t = MathUtils.clamp(dashAnimT / dashAnimDur, 0f,1f);
+        float t = MathUtils.clamp(dashAnimT / dashAnimDuration, 0f,1f);
         float ease = 1f - (1f - t)*(1f - t);
         playerBounds.x = MathUtils.lerp(dashStartX, dashEndX, ease);
         playerBounds.y = MathUtils.lerp(dashStartY, dashEndY, ease);
@@ -427,8 +435,8 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private void centerCameraOnPlayer(){
         float px = playerBounds.x + playerBounds.width * 0.5f;
         float py = playerBounds.y + playerBounds.height* 0.5f;
-        camera.position.set(px, py, 0f);
-        camera.update();
+        worldCamera.position.set(px, py, 0f);
+        worldCamera.update();
     }
 
     // ------------------------------------------------------------------------
@@ -447,7 +455,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
 
         if (meleeTimer <= 0f) {
             meleeActive = false;
-            attackBrows = false;
+            showAttackBrows = false;
             currentSwingId = -1;
             return;
         }
@@ -474,8 +482,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
                 dropCoin(e);
                 maybeDropOrb(e);
                 enemies.removeIndex(i);
-                paths.remove(e);
-                if (e instanceof Archer) archerDrawT.remove((Archer) e);
+                pathing.remove(e);
             }
         }
 
@@ -490,7 +497,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
         meleeTimer  = meleeActiveTime;
         meleeCooldownTimer = meleeCooldown;
         swingTimer = 0f;
-        attackBrows = true;
+        showAttackBrows = true;
         swordRightHand = !swordRightHand;
 
         // fresh swing ID
@@ -499,19 +506,19 @@ public class EnemySandboxApp extends ApplicationAdapter {
         float px=playerBounds.x + playerBounds.width*0.5f;
         float py=playerBounds.y + playerBounds.height*0.5f;
 
-        float dx=lastDirX, dy=lastDirY;
+        float dx=lastMoveDirX, dy=lastMoveDirY;
         if (Math.abs(dx)<1e-5f && Math.abs(dy)<1e-5f){ dx=0f; dy=1f; }
 
         float cx = px + dx*(playerBounds.width*0.5f + meleeRange);
         float cy = py + dy*(playerBounds.height*0.5f + meleeRange);
-        meleeBox.set(cx - meleeSize*0.5f, cy - meleeSize*0.5f, meleeSize, meleeSize);
+        meleeBox.set(cx - meleeBoxSize*0.5f, cy - meleeBoxSize*0.5f, meleeBoxSize, meleeBoxSize);
     }
 
     private void drawSwordSwing(){
         float px=playerBounds.x + playerBounds.width*0.5f;
         float py=playerBounds.y + playerBounds.height*0.5f;
 
-        float dx=lastDirX, dy=lastDirY;
+        float dx=lastMoveDirX, dy=lastMoveDirY;
         if (Math.abs(dx)<1e-5f && Math.abs(dy)<1e-5f){ dx=0f; dy=1f; }
         float baseAngle = MathUtils.atan2(dy, dx) * MathUtils.radiansToDegrees;
 
@@ -527,106 +534,84 @@ public class EnemySandboxApp extends ApplicationAdapter {
 
         swordSprite.setRotation(baseAngle + cur);
         swordSprite.setPosition(hx - swordSprite.getOriginX(), hy - swordSprite.getOriginY());
-        swordSprite.draw(batch);
+        swordSprite.draw(spriteBatch);
     }
 
     // ------------------------------------------------------------------------
-    // Enemies update (per-axis move + slide + stuck recovery)
+    // Enemies update (Archer/Berserker self-update via EnemyContext;
+    // others use per-axis move + slide + stuck recovery)
     // ------------------------------------------------------------------------
     private void updateEnemies(float dt){
-        int pTx = worldToTileX(playerBounds.x + playerBounds.width*0.5f);
-        int pTy = worldToTileY(playerBounds.y + playerBounds.height*0.5f);
+        int playerTileX = worldToTileX(playerBounds.x + playerBounds.width*0.5f);
+        int playerTileY = worldToTileY(playerBounds.y + playerBounds.height*0.5f);
 
-        for (Enemy e : enemies){
-            e.update(dt);
+        for (Enemy enemy : enemies){
+            // Always tick via EnemyContext; Archer/Berserker implement their own behavior
+            enemy.update(dt, enemyCtx);
 
-            // --- Archer wind-up and fire logic ---
-            if (e instanceof Archer) {
-                Archer a = (Archer)e;
-                Float draw = archerDrawT.get(a);
-                if (draw != null) {
-                    draw -= dt;
-                    if (draw <= 0f) {
-                        float px = playerBounds.x + playerBounds.width*0.5f;
-                        float py = playerBounds.y + playerBounds.height*0.5f;
-                        shootArrowFrom(a, px, py);
-                        archerDrawT.remove(a);
-                        a.fireTimer = archerFireInterval;
-                    } else {
-                        archerDrawT.put(a, draw);
-                    }
-                } else {
-                    a.fireTimer -= dt;
-                    if (a.fireTimer <= 0f) {
-                        // start the draw animation
-                        archerDrawT.put(a, archerDrawWindup);
-                    }
+            // For simple melee enemies (Goblin/Hobgoblin/Bomber), apply sandbox pathing
+            if (enemy instanceof Archer || enemy instanceof Berserker) {
+                // handled internally
+            } else {
+                PathState ps = pathing.get(enemy);
+                if (ps == null) { ps = new PathState(); pathing.put(enemy, ps); initStuckTrack(enemy, ps); }
+
+                ps.repathTimer -= dt;
+                if (ps.nudgeCooldown > 0f) ps.nudgeCooldown -= dt;
+
+                boolean needRepath = (ps.repathTimer<=0f) || (ps.lastTargetTx!=playerTileX || ps.lastTargetTy!=playerTileY);
+
+                Rectangle rb = enemy.getBoundingBox();
+                int eTx = worldToTileX(rb.x + rb.width*0.5f);
+                int eTy = worldToTileY(rb.y + rb.height*0.5f);
+
+                if (needRepath){
+                    ps.waypoints.clear();
+                    findPathAStar(eTx, eTy, playerTileX, playerTileY, ps.waypoints);
+                    smoothWaypoints(ps.waypoints, rb.x + rb.width*0.5f, rb.y + rb.height*0.5f);
+                    ps.current = 0;
+                    ps.repathTimer = REPTH_INTERVAL;
+                    ps.lastTargetTx = playerTileX; ps.lastTargetTy = playerTileY;
                 }
+
+                // choose target waypoint (or player center as fallback)
+                Vector2 target = null;
+                while (ps.current < ps.waypoints.size) {
+                    Vector2 wp = ps.waypoints.get(ps.current);
+                    float dx = (rb.x + rb.width*0.5f) - wp.x;
+                    float dy = (rb.y + rb.height*0.5f) - wp.y;
+                    if (dx*dx + dy*dy < 14f*14f) ps.current++;
+                    else { target = wp.cpy(); target.add(clearanceNudgeAtWorld(target.x, target.y, 0.18f*TILE_SIZE)); break; }
+                }
+                if (target == null) target = new Vector2(
+                        playerBounds.x + playerBounds.width*0.5f,
+                        playerBounds.y + playerBounds.height*0.5f
+                );
+
+                // PER-AXIS MOVE + SLIDE
+                float cx = rb.x + rb.width*0.5f, cy = rb.y + rb.height*0.5f;
+                float dx = target.x - cx, dy = target.y - cy;
+                float len = (float)Math.sqrt(dx*dx + dy*dy);
+                if (len < 1e-4f) len = 1f;
+                dx /= len; dy /= len;
+
+                float step = enemy.getSpeed() * dt;
+                float moveX = dx * step;
+                float moveY = dy * step;
+
+                float oldX = rb.x, oldY = rb.y;
+
+                // X first
+                rb.x = oldX + moveX;
+                if (enemyRectBlockedInset(rb)) rb.x = oldX;
+
+                // Y next
+                rb.y = oldY + moveY;
+                if (enemyRectBlockedInset(rb)) rb.y = oldY;
+
+                // STUCK RECOVERY
+                updateStuckTrack(enemy, ps, dt);
             }
-
-            if (e instanceof Berserker) {
-                updateBerserker((Berserker)e, dt);
-                continue;
-            }
-
-            PathState ps = paths.get(e);
-            if (ps == null) { ps = new PathState(); paths.put(e, ps); initStuckTrack(e, ps); }
-
-            ps.repathTimer -= dt;
-            if (ps.nudgeCooldown > 0f) ps.nudgeCooldown -= dt;
-
-            boolean needRepath = (ps.repathTimer<=0f) || (ps.lastTargetTx!=pTx || ps.lastTargetTy!=pTy);
-
-            Rectangle rb = e.getBoundingBox();
-            int eTx = worldToTileX(rb.x + rb.width*0.5f);
-            int eTy = worldToTileY(rb.y + rb.height*0.5f);
-
-            if (needRepath){
-                ps.waypoints.clear();
-                findPathAStar(eTx, eTy, pTx, pTy, ps.waypoints);
-                smoothWaypoints(ps.waypoints, rb.x + rb.width*0.5f, rb.y + rb.height*0.5f);
-                ps.current = 0;
-                ps.repathTimer = REPTH_INTERVAL;
-                ps.lastTargetTx = pTx; ps.lastTargetTy = pTy;
-            }
-
-            // choose target waypoint (or player center as fallback)
-            Vector2 target = null;
-            while (ps.current < ps.waypoints.size) {
-                Vector2 wp = ps.waypoints.get(ps.current);
-                float dx = (rb.x + rb.width*0.5f) - wp.x;
-                float dy = (rb.y + rb.height*0.5f) - wp.y;
-                if (dx*dx + dy*dy < 14f*14f) ps.current++;
-                else { target = wp.cpy(); target.add(clearanceNudgeAtWorld(target.x, target.y, 0.18f*TILE_SIZE)); break; }
-            }
-            if (target == null) target = new Vector2(
-                    playerBounds.x + playerBounds.width*0.5f,
-                    playerBounds.y + playerBounds.height*0.5f
-            );
-
-            // PER-AXIS MOVE + SLIDE
-            float cx = rb.x + rb.width*0.5f, cy = rb.y + rb.height*0.5f;
-            float dx = target.x - cx, dy = target.y - cy;
-            float len = (float)Math.sqrt(dx*dx + dy*dy);
-            if (len < 1e-4f) len = 1f;
-            dx /= len; dy /= len;
-
-            float step = e.getSpeed() * dt;
-            float moveX = dx * step;
-            float moveY = dy * step;
-
-            float oldX = rb.x, oldY = rb.y;
-
-            // X first
-            rb.x = oldX + moveX;
-            if (enemyRectBlockedInset(rb)) rb.x = oldX;
-
-            // Y next
-            rb.y = oldY + moveY;
-            if (enemyRectBlockedInset(rb)) rb.y = oldY;
-
-            // STUCK RECOVERY
-            updateStuckTrack(e, ps, dt);
         }
 
         // separate a bit (circle push)
@@ -639,7 +624,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
 
             if (e instanceof Berserker) {
                 Berserker b = (Berserker)e;
-                if (b.state == Berserker.State.DASHING && !b.hasDealtDashDamage) {
+                if (b.state == State.DASHING && !b.hasDealtDashDamage) {
                     playerTakeDamage(20);
                     b.hasDealtDashDamage = true; // only once per dash
                 }
@@ -652,16 +637,14 @@ public class EnemySandboxApp extends ApplicationAdapter {
                 dropBombAt(br.x + br.width*0.5f, br.y + br.height*0.5f);
             }
 
-            // Apply each enemy’s touch damage then despawn
-            if (e instanceof Goblin)         playerTakeDamage(3);
-            else if (e instanceof Hobgoblin) playerTakeDamage(5);
-            else if (e instanceof Archer)    playerTakeDamage(3);
+            // Apply each enemy’s touch damage then despawn (for goblin/hob/archer)
+            int dmg = Math.max(0, e.getDamage());
+            if (dmg > 0) playerTakeDamage(dmg);
 
             dropCoin(e);
             maybeDropOrb(e);
             enemies.removeIndex(i);
-            paths.remove(e);
-            if (e instanceof Archer) archerDrawT.remove((Archer)e);
+            pathing.remove(e);
         }
     }
 
@@ -699,7 +682,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
             rb.y += ny; if (enemyRectBlockedInset(rb)) rb.y = oldY;
 
             // force a quick repath soon
-            PathState ps2 = paths.get(e);
+            PathState ps2 = pathing.get(e);
             if (ps2 != null) ps2.repathTimer = Math.min(ps2.repathTimer, 0.05f);
 
             // cooldown and reset
@@ -713,96 +696,6 @@ public class EnemySandboxApp extends ApplicationAdapter {
         if (dmg<=0 || playerHealth<=0) return;
         playerHealth = Math.max(0, playerHealth - dmg);
         hitFlashTimer = hitFlashDuration;
-    }
-
-    private void updateBerserker(Berserker b, float dt){
-        b.update(dt);
-
-        Rectangle rb = b.getBoundingBox();
-        float bx = rb.x + rb.width*0.5f, by = rb.y + rb.height*0.5f;
-        float px = playerBounds.x + playerBounds.width*0.5f;
-        float py = playerBounds.y + playerBounds.height*0.5f;
-
-        switch (b.state){
-            case APPROACH: {
-                // path like others
-                PathState ps = paths.get(b);
-                if (ps == null) { ps = new PathState(); paths.put(b, ps); initStuckTrack(b, ps); }
-                int pTx = worldToTileX(px), pTy = worldToTileY(py);
-                int eTx = worldToTileX(bx), eTy = worldToTileY(by);
-                ps.repathTimer -= dt;
-                if (ps.repathTimer <= 0f || ps.lastTargetTx!=pTx || ps.lastTargetTy!=pTy) {
-                    ps.waypoints.clear();
-                    findPathAStar(eTx, eTy, pTx, pTy, ps.waypoints);
-                    smoothWaypoints(ps.waypoints, bx, by);
-                    ps.current = 0; ps.repathTimer = REPTH_INTERVAL;
-                    ps.lastTargetTx = pTx; ps.lastTargetTy = pTy;
-                }
-                Vector2 target=null;
-                while (ps.current < ps.waypoints.size) {
-                    Vector2 wp = ps.waypoints.get(ps.current);
-                    if (wp.dst2(bx,by) < 14f*14f) ps.current++;
-                    else { target=wp.cpy(); target.add(clearanceNudgeAtWorld(target.x,target.y,0.18f*TILE_SIZE)); break; }
-                }
-                if (target==null) target = new Vector2(px,py);
-
-                // per-axis approach movement (slide)
-                float dx = target.x - (rb.x + rb.width*0.5f);
-                float dy = target.y - (rb.y + rb.height*0.5f);
-                float len = (float)Math.sqrt(dx*dx + dy*dy);
-                if (len < 1e-4f) len = 1f;
-                dx/=len; dy/=len;
-
-                float step = 340f * dt; // approach speed
-                float moveX = dx * step;
-                float moveY = dy * step;
-
-                float oldX = rb.x, oldY = rb.y;
-                rb.x = oldX + moveX; if (enemyRectBlockedInset(rb)) rb.x = oldX;
-                rb.y = oldY + moveY; if (enemyRectBlockedInset(rb)) rb.y = oldY;
-
-                // stuck tracker
-                updateStuckTrack(b, ps, dt);
-
-                // start charge a bit farther away (3.5 tiles)
-                if (Vector2.dst2(bx,by,px,py) <= (3.5f*TILE_SIZE)*(3.5f*TILE_SIZE)) {
-                    b.state = Berserker.State.CHARGING;
-                    b.chargeTimer = (BOMB_TICKS * BOMB_TICK_INTERVAL) * 0.5f; // ~half the bomb time
-                    b.shakeSeed = MathUtils.random(10000f);
-                    b.hasDealtDashDamage = false;
-                }
-                break;
-            }
-            case CHARGING: {
-                b.chargeTimer -= dt;
-                if (b.chargeTimer <= 0f) {
-                    // lock direction now
-                    float cpx = playerBounds.x + playerBounds.width*0.5f;
-                    float cpy = playerBounds.y + playerBounds.height*0.5f;
-                    b.dashDir.set(cpx - bx, cpy - by).nor();
-                    b.state = Berserker.State.DASHING;
-                    b.dashTimer = 0.8f; // short dash
-                }
-                break;
-            }
-            case DASHING: {
-                float ox=rb.x, oy=rb.y;
-                float step = b.dashSpeed * dt;
-                rb.x += b.dashDir.x * step; if (enemyRectBlockedInset(rb)) rb.x = ox;
-                rb.y += b.dashDir.y * step; if (enemyRectBlockedInset(rb)) rb.y = oy;
-                b.dashTimer -= dt;
-                if (b.dashTimer <= 0f) {
-                    b.state = Berserker.State.RECOVER;
-                    b.recoverTimer = 0.4f;
-                }
-                break;
-            }
-            case RECOVER: {
-                b.recoverTimer -= dt;
-                if (b.recoverTimer <= 0f) b.state = Berserker.State.APPROACH;
-                break;
-            }
-        }
     }
 
     // ------------------------------------------------------------------------
@@ -883,13 +776,13 @@ public class EnemySandboxApp extends ApplicationAdapter {
     // Pathing
     // ------------------------------------------------------------------------
     private boolean enemyRectBlockedInset(Rectangle r){
-        tmpCollRect.set(
+        tmpCollisionRect.set(
                 r.x + ENEMY_COLLISION_INSET,
                 r.y + ENEMY_COLLISION_INSET,
                 Math.max(1f, r.width  - 2f*ENEMY_COLLISION_INSET),
                 Math.max(1f, r.height - 2f*ENEMY_COLLISION_INSET)
         );
-        return dungeon.rectBlocked(tmpCollRect);
+        return dungeon.rectBlocked(tmpCollisionRect);
     }
 
     private static class Node {
@@ -1053,17 +946,16 @@ public class EnemySandboxApp extends ApplicationAdapter {
         else                spawnBerserkerAnywhere();
     }
 
-    private void spawnGoblinAnywhere(){ spawnAnywhere(new Goblin(goblinBodyTex,0,0,goblinSz.w,goblinSz.h)); }
-    private void spawnHobgoblinAnywhere(){ spawnAnywhere(new Hobgoblin(hobgoblinBodyTex,0,0,hobSz.w,hobSz.h)); }
+    private void spawnGoblinAnywhere(){ spawnAnywhere(new Goblin(goblinBodyTexture,0,0,goblinSize.w,goblinSize.h)); }
+    private void spawnHobgoblinAnywhere(){ spawnAnywhere(new Hobgoblin(hobgoblinBodyTexture,0,0,hobgoblinSize.w,hobgoblinSize.h)); }
     private void spawnArcherAnywhere(){
-        Archer a=new Archer(archerBodyTex,0,0,archerSz.w,archerSz.h);
-        a.fireTimer=MathUtils.random(0.2f, archerFireInterval);
+        Archer a=new Archer(archerBodyTexture,0,0,archerSize.w,archerSize.h);
         spawnAnywhere(a);
     }
-    private void spawnBomberAnywhere(){ spawnAnywhere(new Bomber(bomberBodyTex,0,0,bomberSz.w,bomberSz.h)); }
+    private void spawnBomberAnywhere(){ spawnAnywhere(new Bomber(bomberBodyTexture,0,0,bomberSize.w,bomberSize.h)); }
 
     private void spawnBerserkerAnywhere(){
-        Berserker b = new Berserker(berserkerBodyTex,0,0,berserkSz.w,berserkSz.h);
+        Berserker b = new Berserker(berserkerBodyTexture,0,0,berserkerSize.w,berserkerSize.h);
         spawnAnywhere(b);
         Gdx.app.log("SPAWN", "Berserker HP=" + b.getHealth() + " / " + b.getMaxHealth());
     }
@@ -1090,7 +982,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
         }
         enemies.add(e);
         PathState ps = new PathState();
-        paths.put(e, ps);
+        pathing.put(e, ps);
         initStuckTrack(e, ps);
 
         // TEMP: detect accidental duplicate references in the enemies array
@@ -1105,20 +997,6 @@ public class EnemySandboxApp extends ApplicationAdapter {
         }
     }
 
-    private void shootArrowFrom(Archer archer,float targetX,float targetY){
-        Rectangle rb=archer.getBoundingBox();
-        float sx=rb.x + rb.width*0.5f, sy=rb.y + rb.height*0.5f;
-        float dx=targetX - sx, dy=targetY - sy, len=(float)Math.sqrt(dx*dx + dy*dy);
-        if (len<1e-4f) return;
-        dx/=len; dy/=len;
-        Arrow a = new Arrow(arrowTex, sx-9f, sy-3f, 18f, 6f, dx*arrowSpeed, dy*arrowSpeed, arrowDamage);
-        if (dungeon.rectBlocked(a.bounds)) {
-            float[] p=dungeon.nearestOpen(a.bounds.x, a.bounds.y, 6);
-            a.bounds.x=p[0]; a.bounds.y=p[1];
-        }
-        arrows.add(a);
-    }
-
     private void dropBombAt(float wx,float wy){ bombs.add(new Bomb(wx,wy)); }
 
     private void maybeDropOrb(Enemy e){
@@ -1126,7 +1004,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
             Rectangle b=e.getBoundingBox();
             float cx=b.x + b.width*0.5f, cy=b.y + b.height*0.5f;
             // orbs drawn below coins
-            orbs.add(new Orb(orbTex, cx-8, cy-8, 16, 16));
+            orbs.add(new Orb(orbTexture, cx-8, cy-8, 16, 16));
         }
     }
 
@@ -1134,7 +1012,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
         Rectangle b = e.getBoundingBox();
         float cx = b.x + b.width*0.5f, cy = b.y + b.height*0.5f;
         int value = MathUtils.random(1,3);
-        coins.add(new Coin(coinTex, cx-8, cy-8, 16, 16, value));
+        coins.add(new Coin(coinTexture, cx-8, cy-8, 16, 16, value));
     }
 
     private void snapRectToOpen(Rectangle r){
@@ -1151,112 +1029,47 @@ public class EnemySandboxApp extends ApplicationAdapter {
         hud.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         hud.update();
 
-        batch.setProjectionMatrix(hud.combined);
-        batch.begin();
+        spriteBatch.setProjectionMatrix(hud.combined);
+        spriteBatch.begin();
 
         float barW=280f, barH=18f, marginTop=16f;
         float x=(Gdx.graphics.getWidth()-barW)*0.5f;
         float y=Gdx.graphics.getHeight()-marginTop-barH;
 
         // HP bar
-        batch.setColor(0f,0f,0f,0.6f); batch.draw(whiteTex, x-2, y-2, barW+4, barH+4);
-        batch.setColor(0.6f,0.1f,0.1f,1f); batch.draw(whiteTex, x, y, barW, barH);
+        spriteBatch.setColor(0f,0f,0f,0.6f); spriteBatch.draw(whiteTexture, x-2, y-2, barW+4, barH+4);
+        spriteBatch.setColor(0.6f,0.1f,0.1f,1f); spriteBatch.draw(whiteTexture, x, y, barW, barH);
         float hpPct = Math.max(0f, Math.min(1f, (float)playerHealth/playerHealthMax));
-        batch.setColor(0.15f,0.9f,0.2f,1f); batch.draw(whiteTex, x, y, barW*hpPct, barH);
+        spriteBatch.setColor(0.15f,0.9f,0.2f,1f); spriteBatch.draw(whiteTexture, x, y, barW*hpPct, barH);
 
-        batch.setColor(Color.WHITE);
+        spriteBatch.setColor(Color.WHITE);
         String hpText = playerHealth + " / " + playerHealthMax;
-        glyph.setText(font, hpText);
-        float tx = x + (barW - glyph.width)*0.5f;
-        float ty = y + (barH + glyph.height)*0.5f;
-        font.draw(batch, glyph, tx, ty);
+        glyphLayout.setText(hudFont, hpText);
+        float tx = x + (barW - glyphLayout.width)*0.5f;
+        float ty = y + (barH + glyphLayout.height)*0.5f;
+        hudFont.draw(spriteBatch, glyphLayout, tx, ty);
 
         // Dash bar
         float dashGap=8f, dashH=10f, dy=y - dashGap - dashH;
-        batch.setColor(0f,0f,0f,0.6f); batch.draw(whiteTex, x-2, dy-2, barW+4, dashH+4);
-        batch.setColor(0.20f,0.20f,0.08f,1f); batch.draw(whiteTex, x, dy, barW, dashH);
-        float dashPct = 1f - Math.max(0f, Math.min(1f, dashCdTimer / dashCooldown));
-        batch.setColor(0.95f,0.85f,0.20f,1f); batch.draw(whiteTex, x, dy, barW*dashPct, dashH);
+        spriteBatch.setColor(0f,0f,0f,0.6f); spriteBatch.draw(whiteTexture, x-2, dy-2, barW+4, dashH+4);
+        spriteBatch.setColor(0.20f,0.20f,0.08f,1f); spriteBatch.draw(whiteTexture, x, dy, barW, dashH);
+        float dashPct = 1f - Math.max(0f, Math.min(1f, dashCooldownTimer / dashCooldownSeconds));
+        spriteBatch.setColor(0.95f,0.85f,0.20f,1f); spriteBatch.draw(whiteTexture, x, dy, barW*dashPct, dashH);
 
         // Coin HUD (top-right)
         float cPad=16f, cSize=24f, cx=Gdx.graphics.getWidth()-cPad-cSize, cy=Gdx.graphics.getHeight()-cPad-cSize;
-        batch.setColor(Color.WHITE); batch.draw(coinTex, cx, cy, cSize, cSize);
+        spriteBatch.setColor(Color.WHITE); spriteBatch.draw(coinTexture, cx, cy, cSize, cSize);
         String cText = String.valueOf(coinCount);
-        glyph.setText(font, cText);
-        font.draw(batch, glyph, cx - 8f - glyph.width, cy + glyph.height + 2f);
+        glyphLayout.setText(hudFont, cText);
+        hudFont.draw(spriteBatch, glyphLayout, cx - 8f - glyphLayout.width, cy + glyphLayout.height + 2f);
 
-        batch.end();
-        batch.setProjectionMatrix(camera.combined);
+        spriteBatch.end();
+        spriteBatch.setProjectionMatrix(worldCamera.combined);
     }
 
     // ------------------------------------------------------------------------
-    // Drawing helpers (faces, bow, bombs, textures)
+    // Drawing helpers (faces, bombs, textures)
     // ------------------------------------------------------------------------
-    private void drawArcherBow(Archer a){
-        // simple curved bow with draw animation
-        Rectangle rb = a.getBoundingBox();
-        float ax = rb.x + rb.width*0.5f;
-        float ay = rb.y + rb.height*0.5f;
-
-        float px = playerBounds.x + playerBounds.width*0.5f;
-        float py = playerBounds.y + playerBounds.height*0.5f;
-
-        float dx = px - ax, dy = py - ay;
-        float len = (float)Math.sqrt(dx*dx + dy*dy); if (len<1e-4f){ dx=1f; dy=0f; len=1f; }
-        dx/=len; dy/=len;
-
-        Float drawT = archerDrawT.get(a);
-        float progress = 0f;
-        if (drawT != null && drawT > 0f) progress = MathUtils.clamp(1f - (drawT / archerDrawWindup), 0f, 1f);
-
-        // tiny “string”
-        float angleDeg = MathUtils.atan2(dy,dx)*MathUtils.radiansToDegrees;
-        float grip = Math.min(rb.width, rb.height)*0.6f;
-        float bx = ax + dx*grip;
-        float by = ay + dy*grip;
-
-        // bow arc – draw with thick segments
-        drawCurvedBow(bx, by, angleDeg, progress);
-
-        // mini arrow at rest while drawing
-        if (progress > 0f) {
-            float arrowW=14f, arrowH=3f;
-            Sprite s = rotSprite;
-            s.setRegion(whiteTex);
-            s.setSize(arrowW, arrowH);
-            s.setOrigin(0f, arrowH*0.5f);
-            s.setRotation(angleDeg);
-            s.setPosition(bx - 4f, by - arrowH*0.5f);
-            s.setColor(0.95f,0.9f,0.2f,1f);
-            s.draw(batch);
-            s.setColor(Color.WHITE);
-        }
-    }
-
-    private void drawCurvedBow(float cx, float cy, float angleDeg, float drawProgress){
-        // simple crescent
-        float radius = 28f;
-        float thickness = 6f;
-        int segments = 28;
-        float start = -60f * MathUtils.degreesToRadians;
-        float end   =  60f * MathUtils.degreesToRadians;
-
-        // rotate frame
-        float ang = angleDeg * MathUtils.degreesToRadians;
-        float cos= MathUtils.cos(ang), sin=MathUtils.sin(ang);
-
-        float px=0, py=0; boolean has=false;
-        for (int i=0;i<=segments;i++){
-            float t = MathUtils.lerp(start,end, i/(float)segments);
-            float x = MathUtils.cos(t) * radius;
-            float y = MathUtils.sin(t) * radius;
-            float rx = cx + x*cos - y*sin;
-            float ry = cy + x*sin + y*cos;
-            if (has) drawThickSegment(px,py, rx,ry, thickness);
-            px=rx; py=ry; has=true;
-        }
-    }
-
     private void renderBombs(SpriteBatch batch){
         for (Bomb b : bombs){
             if (!b.exploded){
@@ -1266,13 +1079,13 @@ public class EnemySandboxApp extends ApplicationAdapter {
                 drawCircleOutline(b.x, b.y, BOMB_RADIUS, 3f, 96, ring);
 
                 batch.setColor(0.85f,0.10f,0.10f,1f);
-                batch.draw(whiteTex, b.x-10f, b.y-10f, 20f, 20f);
+                batch.draw(whiteTexture, b.x-10f, b.y-10f, 20f, 20f);
                 batch.setColor(Color.WHITE);
 
                 if (phase > 0.85f){
                     float rr = 14f * (0.2f + 0.8f*(phase - 0.85f)/0.15f);
                     batch.setColor(1f,0.95f,0.3f,0.6f);
-                    batch.draw(whiteTex, b.x-rr, b.y-rr, 2*rr, 2*rr);
+                    batch.draw(whiteTexture, b.x-rr, b.y-rr, 2*rr, 2*rr);
                     batch.setColor(Color.WHITE);
                 }
             } else {
@@ -1291,9 +1104,9 @@ public class EnemySandboxApp extends ApplicationAdapter {
 
         switch (style){
             case PLAYER_SMILE:{
-                batch.setColor(Color.BLACK);
-                batch.draw(whiteTex, eyeX1, eyeY, eyeW, drawnEyeH);
-                batch.draw(whiteTex, eyeX2, eyeY, eyeW, drawnEyeH);
+                spriteBatch.setColor(Color.BLACK);
+                spriteBatch.draw(whiteTexture, eyeX1, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, eyeX2, eyeY, eyeW, drawnEyeH);
                 float mw=w*0.52f, sx=x+(w-mw)*0.5f, ex=sx+mw, my=y+h*0.30f, cy2=my - Math.max(5f,h*0.06f);
                 drawCurvedMouth(sx,my, ex,my, (sx+ex)/2f, cy2, Math.max(2.5f, h/18f));
                 if (special){ // attack brows
@@ -1302,7 +1115,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
                     drawRotRect(ex1,eyb, browLen,browThk, -20f, Color.BLACK);
                     drawRotRect(ex2,eyb, browLen,browThk, +20f, Color.BLACK);
                 }
-                batch.setColor(Color.WHITE);
+                spriteBatch.setColor(Color.WHITE);
                 break;
             }
             case GOBLIN_DEVIOUS:{
@@ -1311,74 +1124,74 @@ public class EnemySandboxApp extends ApplicationAdapter {
                 float browLen=eW*1.15f, browThk=Math.max(2.5f,h/30f);
                 drawRotRect(ex1,ey,browLen,browThk,-25f, Color.BLACK);
                 drawRotRect(ex2,ey,browLen,browThk,+25f, Color.BLACK);
-                batch.setColor(Color.BLACK);
-                batch.draw(whiteTex, eyeX1, eyeY, eW, eH);
-                batch.draw(whiteTex, eyeX2, eyeY, eW, eH);
+                spriteBatch.setColor(Color.BLACK);
+                spriteBatch.draw(whiteTexture, eyeX1, eyeY, eW, eH);
+                spriteBatch.draw(whiteTexture, eyeX2, eyeY, eW, eH);
                 float mw2=w*0.46f, mx=x+(w-mw2)*0.5f, my2=y+h*0.28f, th=Math.max(3f,h/16f), seg=mw2/3f;
-                batch.draw(whiteTex, mx, my2+1f, seg, th-1f);
-                batch.draw(whiteTex, mx+seg, my2, seg, th);
-                batch.draw(whiteTex, mx+2*seg, my2+1f, seg, th-1f);
-                batch.setColor(Color.WHITE);
+                spriteBatch.draw(whiteTexture, mx, my2+1f, seg, th-1f);
+                spriteBatch.draw(whiteTexture, mx+seg, my2, seg, th);
+                spriteBatch.draw(whiteTexture, mx+2*seg, my2+1f, seg, th-1f);
+                spriteBatch.setColor(Color.WHITE);
 
                 // tusks
                 drawTusksFor(x, y, w, h, false);
                 break;
             }
             case HOB_DEVIOUS:{
-                batch.setColor(Color.BLACK);
+                spriteBatch.setColor(Color.BLACK);
                 float browH=Math.max(3f,h/22f);
-                batch.draw(whiteTex, eyeX1-2f, eyeY+drawnEyeH+4f, eyeW+6f, browH);
-                batch.draw(whiteTex, eyeX2-2f, eyeY+drawnEyeH+4f, eyeW+6f, browH);
-                batch.draw(whiteTex, eyeX1, eyeY, eyeW, drawnEyeH);
-                batch.draw(whiteTex, eyeX2, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, eyeX1-2f, eyeY+drawnEyeH+4f, eyeW+6f, browH);
+                spriteBatch.draw(whiteTexture, eyeX2-2f, eyeY+drawnEyeH+4f, eyeW+6f, browH);
+                spriteBatch.draw(whiteTexture, eyeX1, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, eyeX2, eyeY, eyeW, drawnEyeH);
                 float my=y+h*0.28f, mw=w*0.50f, mx=x+(w-mw)*0.5f, th=Math.max(3f,h/16f);
-                batch.draw(whiteTex, mx, my+1f, mw/3f, th-1f);
-                batch.draw(whiteTex, mx+mw/3f, my,    mw/3f, th);
-                batch.draw(whiteTex, mx+2*mw/3f, my+1f, mw/3f, th-1f);
-                batch.setColor(Color.WHITE);
+                spriteBatch.draw(whiteTexture, mx, my+1f, mw/3f, th-1f);
+                spriteBatch.draw(whiteTexture, mx+mw/3f, my,    mw/3f, th);
+                spriteBatch.draw(whiteTexture, mx+2*mw/3f, my+1f, mw/3f, th-1f);
+                spriteBatch.setColor(Color.WHITE);
 
                 // bigger tusks
                 drawTusksFor(x, y, w, h, true);
                 break;
             }
             case ARCHER_MASK:{
-                batch.setColor(0.1f,0.1f,0.1f,1f);
+                spriteBatch.setColor(0.1f,0.1f,0.1f,1f);
                 float bandH=Math.max(4f,h/6f), bandY=eyeY - bandH*0.5f;
-                batch.draw(whiteTex, x+w*0.15f, bandY, w*0.70f, bandH);
-                batch.setColor(Color.WHITE);
-                batch.draw(whiteTex, eyeX1, eyeY, eyeW, drawnEyeH);
-                batch.draw(whiteTex, eyeX2, eyeY, eyeW, drawnEyeH);
-                batch.setColor(Color.BLACK);
-                batch.draw(whiteTex, eyeX1+eyeW/3f, eyeY, eyeW/3f, drawnEyeH);
-                batch.draw(whiteTex, eyeX2+eyeW/3f, eyeY, eyeW/3f, drawnEyeH);
-                batch.draw(whiteTex, x+w*0.5f-w*0.12f, y+h*0.32f, w*0.24f, Math.max(2f,h/20f));
-                batch.setColor(Color.WHITE);
+                spriteBatch.draw(whiteTexture, x+w*0.15f, bandY, w*0.70f, bandH);
+                spriteBatch.setColor(Color.WHITE);
+                spriteBatch.draw(whiteTexture, eyeX1, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, eyeX2, eyeY, eyeW, drawnEyeH);
+                spriteBatch.setColor(Color.BLACK);
+                spriteBatch.draw(whiteTexture, eyeX1+eyeW/3f, eyeY, eyeW/3f, drawnEyeH);
+                spriteBatch.draw(whiteTexture, eyeX2+eyeW/3f, eyeY, eyeW/3f, drawnEyeH);
+                spriteBatch.draw(whiteTexture, x+w*0.5f-w*0.12f, y+h*0.32f, w*0.24f, Math.max(2f,h/20f));
+                spriteBatch.setColor(Color.WHITE);
                 break;
             }
             case BOMBER_ANGRY:{
-                batch.setColor(Color.BLACK);
-                batch.draw(whiteTex, eyeX1-2f, eyeY+drawnEyeH+3f, eyeW*0.8f,2f);
-                batch.draw(whiteTex, eyeX2+2f, eyeY+drawnEyeH+3f, -eyeW*0.8f,2f);
-                batch.draw(whiteTex, eyeX1, eyeY, eyeW, drawnEyeH);
-                batch.draw(whiteTex, eyeX2, eyeY, eyeW, drawnEyeH);
-                batch.draw(whiteTex, x+w*0.5f-w*0.16f, y+h*0.32f, w*0.32f, Math.max(3f,h/18f));
-                batch.setColor(Color.WHITE);
+                spriteBatch.setColor(Color.BLACK);
+                spriteBatch.draw(whiteTexture, eyeX1-2f, eyeY+drawnEyeH+3f, eyeW*0.8f,2f);
+                spriteBatch.draw(whiteTexture, eyeX2+2f, eyeY+drawnEyeH+3f, -eyeW*0.8f,2f);
+                spriteBatch.draw(whiteTexture, eyeX1, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, eyeX2, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, x+w*0.5f-w*0.16f, y+h*0.32f, w*0.32f, Math.max(3f,h/18f));
+                spriteBatch.setColor(Color.WHITE);
                 break;
             }
             case BERSERKER_HELM:{
-                batch.setColor(0.75f,0.75f,0.78f,1f);
+                spriteBatch.setColor(0.75f,0.75f,0.78f,1f);
                 float bandH=Math.max(6f,h/8f), bandY=y+h*0.78f - bandH*0.5f;
-                batch.draw(whiteTex, x+w*0.16f, bandY, w*0.68f, bandH);
-                batch.setColor(0.95f,0.95f,0.92f,1f);
+                spriteBatch.draw(whiteTexture, x+w*0.16f, bandY, w*0.68f, bandH);
+                spriteBatch.setColor(0.95f,0.95f,0.92f,1f);
                 drawHorn(x+w*0.16f, bandY+bandH*0.6f, w*0.18f, h*0.20f, +60f);
                 drawHorn(x+w*0.84f, bandY+bandH*0.6f, w*0.18f, h*0.20f, -60f);
-                batch.setColor(Color.BLACK);
-                batch.draw(whiteTex, eyeX1-1f, eyeY+drawnEyeH+3f, eyeW*0.8f,2f);
-                batch.draw(whiteTex, eyeX2+1f, eyeY+drawnEyeH+3f, -eyeW*0.8f,2f);
-                batch.draw(whiteTex, eyeX1, eyeY, eyeW, drawnEyeH);
-                batch.draw(whiteTex, eyeX2, eyeY, eyeW, drawnEyeH); // FIX: draw the right eye
-                batch.draw(whiteTex, x+w*0.5f-w*0.14f, y+h*0.30f, w*0.28f, Math.max(3f,h/20f));
-                batch.setColor(Color.WHITE);
+                spriteBatch.setColor(Color.BLACK);
+                spriteBatch.draw(whiteTexture, eyeX1-1f, eyeY+drawnEyeH+3f, eyeW*0.8f,2f);
+                spriteBatch.draw(whiteTexture, eyeX2+1f, eyeY+drawnEyeH+3f, -eyeW*0.8f,2f);
+                spriteBatch.draw(whiteTexture, eyeX1, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, eyeX2, eyeY, eyeW, drawnEyeH);
+                spriteBatch.draw(whiteTexture, x+w*0.5f-w*0.14f, y+h*0.30f, w*0.28f, Math.max(3f,h/20f));
+                spriteBatch.setColor(Color.WHITE);
                 break;
             }
         }
@@ -1398,27 +1211,26 @@ public class EnemySandboxApp extends ApplicationAdapter {
     }
 
     private void drawTusk(float cx, float cy, float w, float h, float angleDeg){
-        // white fang with small dark base so it “pops”
         drawRotRect(cx, cy, w, h, angleDeg, Color.WHITE);
         drawRotRect(cx, cy + Math.max(0.5f, h*0.06f), w, Math.max(1.5f, h * 0.15f), angleDeg, Color.BLACK);
     }
 
     private void drawHorn(float cx,float cy,float w,float h,float angle){
-        rotSprite.setSize(w,h);
-        rotSprite.setOrigin(w*0.1f, h*0.1f);
-        rotSprite.setRotation(angle);
-        rotSprite.setPosition(cx - w*0.1f, cy - h*0.1f);
-        rotSprite.setColor(0.95f,0.95f,0.92f,1f);
-        rotSprite.draw(batch);
-        rotSprite.setColor(Color.WHITE);
+        rotatedSprite.setSize(w,h);
+        rotatedSprite.setOrigin(w*0.1f, h*0.1f);
+        rotatedSprite.setRotation(angle);
+        rotatedSprite.setPosition(cx - w*0.1f, cy - h*0.1f);
+        rotatedSprite.setColor(0.95f,0.95f,0.92f,1f);
+        rotatedSprite.draw(spriteBatch);
+        rotatedSprite.setColor(Color.WHITE);
     }
 
     private void drawCurvedMouth(float x0,float y0,float x1,float y1,float cx,float cy,float thickness){
         int segs=28; float lastX=x0,lastY=y0;
         for (int i=1;i<=segs;i++){
             float t=i/(float)segs, it=1f-t;
-            // FIX: correct quadratic Bezier formula (was `it*it + x0` which blows up)
-            float px=it*it*x0 + 2*it*t*cx + t*t*x1;   // FIX
+            // Correct quadratic Bezier formula
+            float px=it*it*x0 + 2*it*t*cx + t*t*x1;
             float py=it*it*y0 + 2*it*t*cy + t*t*y1;
             drawThickSegment(lastX,lastY, px,py, thickness);
             lastX=px; lastY=py;
@@ -1429,36 +1241,36 @@ public class EnemySandboxApp extends ApplicationAdapter {
         float dx=x1-x0, dy=y1-y0;
         float len=(float)Math.sqrt(dx*dx+dy*dy);
         if (len<0.5f){
-            batch.setColor(Color.BLACK);
-            batch.draw(whiteTex, x0 - thickness*0.5f, y0 - thickness*0.5f, thickness, thickness);
-            batch.setColor(Color.WHITE);
+            spriteBatch.setColor(Color.BLACK);
+            spriteBatch.draw(whiteTexture, x0 - thickness*0.5f, y0 - thickness*0.5f, thickness, thickness);
+            spriteBatch.setColor(Color.WHITE);
             return;
         }
         float angle = MathUtils.atan2(dy,dx)*MathUtils.radiansToDegrees;
-        Sprite s=rotSprite;
-        s.setRegion(whiteTex);
+        Sprite s=rotatedSprite;
+        s.setRegion(whiteTexture);
         s.setSize(len, thickness);
         s.setOrigin(0f, thickness*0.5f);
         s.setRotation(angle);
         s.setPosition(x0, y0 - thickness*0.5f);
         s.setColor(Color.BLACK);
-        s.draw(batch);
+        s.draw(spriteBatch);
         s.setColor(Color.WHITE);
     }
 
     private void drawRotRect(float cx,float cy,float w,float h,float angleDeg, Color color){
-        rotSprite.setSize(w,h);
-        rotSprite.setOrigin(w*0.5f,h*0.5f);
-        rotSprite.setRotation(angleDeg);
-        rotSprite.setPosition(cx - w*0.5f, cy - h*0.5f);
-        rotSprite.setColor(color);
-        rotSprite.draw(batch);
-        rotSprite.setColor(Color.WHITE);
+        rotatedSprite.setSize(w,h);
+        rotatedSprite.setOrigin(w*0.5f,h*0.5f);
+        rotatedSprite.setRotation(angleDeg);
+        rotatedSprite.setPosition(cx - w*0.5f, cy - h*0.5f);
+        rotatedSprite.setColor(color);
+        rotatedSprite.draw(spriteBatch);
+        rotatedSprite.setColor(Color.WHITE);
     }
 
     private void drawCircleOutline(float cx,float cy,float radius,float thickness,int segments, Color color){
         float prevX=cx+radius, prevY=cy;
-        batch.setColor(color);
+        spriteBatch.setColor(color);
         for (int i=1;i<=segments;i++){
             float t=(i/(float)segments)*MathUtils.PI2;
             float x=cx + radius*MathUtils.cos(t);
@@ -1466,16 +1278,16 @@ public class EnemySandboxApp extends ApplicationAdapter {
             drawThickSegment(prevX,prevY, x,y, thickness);
             prevX=x; prevY=y;
         }
-        batch.setColor(Color.WHITE);
+        spriteBatch.setColor(Color.WHITE);
     }
 
     private Texture bodyFor(Enemy e){
-        if (e instanceof Goblin)    return goblinBodyTex;
-        if (e instanceof Hobgoblin) return hobgoblinBodyTex;
-        if (e instanceof Archer)    return archerBodyTex;
-        if (e instanceof Bomber)    return bomberBodyTex;
-        if (e instanceof Berserker) return berserkerBodyTex;
-        return whiteTex;
+        if (e instanceof Goblin)    return goblinBodyTexture;
+        if (e instanceof Hobgoblin) return hobgoblinBodyTexture;
+        if (e instanceof Archer)    return archerBodyTexture;
+        if (e instanceof Bomber)    return bomberBodyTexture;
+        if (e instanceof Berserker) return berserkerBodyTexture;
+        return whiteTexture;
     }
     private FaceStyle styleFor(Enemy e){
         if (e instanceof Goblin)    return FaceStyle.GOBLIN_DEVIOUS;
@@ -1612,7 +1424,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
         float[] p=dungeon.nearestOpen(wx,wy,radiusTiles);
         int tx=worldToTileX(p[0]), ty=worldToTileY(p[1]);
         if (clearanceAtTile(tx,ty) >= MIN_CLEAR_TILES) return p;
-        for (int r=1;r<=radiusTiles;r++){
+        for (int r=1; r<=radiusTiles; r++){
             for (int dx=-r; dx<=r; dx++){
                 int x=tx+dx, y1=ty+r, y2=ty-r;
                 if (inBoundsTiles(x,y1)&&!dungeon.isSolid(x,y1)&&clearanceAtTile(x,y1)>=MIN_CLEAR_TILES)
@@ -1678,14 +1490,6 @@ public class EnemySandboxApp extends ApplicationAdapter {
         return Float.isInfinite(c)?0f:c;
     }
 
-    private void moveRectToward(Rectangle r, float tx,float ty, float step){
-        float cx=r.x + r.width*0.5f, cy=r.y + r.height*0.5f;
-        float dx=tx - cx, dy=ty - cy, len=(float)Math.sqrt(dx*dx+dy*dy);
-        if (len<1e-4f) return;
-        dx/=len; dy/=len;
-        r.x += dx*step; r.y += dy*step;
-    }
-
     private float time(){ return (float)(Gdx.graphics.getFrameId()/60.0); }
 
     // ------------------------------------------------------------------------
@@ -1722,17 +1526,17 @@ public class EnemySandboxApp extends ApplicationAdapter {
     // ------------------------------------------------------------------------
     // View helpers
     // ------------------------------------------------------------------------
-    private float viewLeft(){ return camera.position.x - camera.viewportWidth*camera.zoom*0.5f; }
-    private float viewBottom(){ return camera.position.y - camera.viewportHeight*camera.zoom*0.5f; }
-    private float viewWidth(){ return camera.viewportWidth*camera.zoom; }
-    private float viewHeight(){ return camera.viewportHeight*camera.zoom; }
+    private float viewLeft(){ return worldCamera.position.x - worldCamera.viewportWidth*worldCamera.zoom*0.5f; }
+    private float viewBottom(){ return worldCamera.position.y - worldCamera.viewportHeight*worldCamera.zoom*0.5f; }
+    private float viewWidth(){ return worldCamera.viewportWidth*worldCamera.zoom; }
+    private float viewHeight(){ return worldCamera.viewportHeight*worldCamera.zoom; }
 
     // ------------------------------------------------------------------------
     // Blink
     // ------------------------------------------------------------------------
-    private void scheduleNextPlayerBlink(){ playerBlinkTimer=MathUtils.random(BLINK_MIN, BLINK_MAX); playerBlinkDur=0f; }
+    private void scheduleNextPlayerBlink(){ playerBlinkTimer=MathUtils.random(BLINK_MIN, BLINK_MAX); playerBlinkDuration=0f; }
     private void updatePlayerBlink(float dt){
-        if (playerBlinkDur>0f){ playerBlinkDur-=dt; if (playerBlinkDur<=0f) scheduleNextPlayerBlink(); return; }
-        playerBlinkTimer -= dt; if (playerBlinkTimer<=0f) playerBlinkDur=BLINK_DUR;
+        if (playerBlinkDuration>0f){ playerBlinkDuration-=dt; if (playerBlinkDuration<=0f) scheduleNextPlayerBlink(); return; }
+        playerBlinkTimer -= dt; if (playerBlinkTimer<=0f) playerBlinkDuration=BLINK_DUR;
     }
 }

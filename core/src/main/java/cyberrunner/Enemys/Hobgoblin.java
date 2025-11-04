@@ -1,16 +1,20 @@
-//Hobgoblin.java
+// Author: Martin Taylor
+// File: Hobgoblin.java
+// Date: 2025-11-04
+// Description:
+//   Larger, tougher goblin variant for touch damage. Defaults to HP=1.
+
 package cyberrunner.Enemys;
 
 import com.badlogic.gdx.graphics.Texture;
 
-/** Larger, tougher goblin variant. You set hobgoblin damage to 5. HP = 1. */
 public class Hobgoblin extends Enemy {
 
-    public static final float DEFAULT_SPEED = 280f;
+    public static final float DEFAULT_SPEED = 280f; // slightly quicker
+    public static final int   TOUCH_DAMAGE  = 5;
 
     public Hobgoblin(Texture tex, float x, float y, float w, float h) {
-        // 7-arg ctor (HP defaults to 1)
-        super(tex, x, y, w, h, DEFAULT_SPEED, 5);
+        super(tex, x, y, w, h, DEFAULT_SPEED, TOUCH_DAMAGE);
         setMaxHp(1);
         setHp(1);
     }

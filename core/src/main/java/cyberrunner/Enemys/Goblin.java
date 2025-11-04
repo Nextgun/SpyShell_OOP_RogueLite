@@ -1,16 +1,21 @@
-//Goblin.java
+// Author: Martin Taylor
+// File: Goblin.java
+// Date: 2025-11-04
+// Description:
+//   Small melee chaser. Uses base class movement helper in future if needed.
+//   Defaults to HP=1 and modest speed.
+
 package cyberrunner.Enemys;
 
 import com.badlogic.gdx.graphics.Texture;
 
-/** Small chaser. You set goblin damage to 3. HP = 1. */
 public class Goblin extends Enemy {
 
     public static final float DEFAULT_SPEED = 260f; // a bit slower than bomber
+    public static final int   TOUCH_DAMAGE  = 3;
 
     public Goblin(Texture tex, float x, float y, float w, float h) {
-        // 7-arg ctor (HP defaults to 1)
-        super(tex, x, y, w, h, DEFAULT_SPEED, 3);
+        super(tex, x, y, w, h, DEFAULT_SPEED, TOUCH_DAMAGE);
         setMaxHp(1);
         setHp(1);
     }

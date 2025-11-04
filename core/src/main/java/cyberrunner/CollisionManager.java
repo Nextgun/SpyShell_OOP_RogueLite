@@ -1,4 +1,10 @@
-//CollisionManager.java
+// Author: Martin Taylor
+// File: CollisionManager.java
+// Date: 2025-11-04
+// Description:
+//   Handles player <-> enemy touch interactions without mutating the enemy
+//   list during iteration (avoids concurrent modification).
+
 package cyberrunner;
 
 import com.badlogic.gdx.math.Rectangle;
@@ -9,10 +15,6 @@ import cyberrunner.Player.Player;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Handles player <-> enemy touch interactions without modifying the list
- * while iterating (prevents nested iterator errors).
- */
 public class CollisionManager {
 
     public static void checkPlayerEnemyCollisions(Player player, List<Enemy> enemies) {
@@ -23,26 +25,17 @@ public class CollisionManager {
             if (!playerBounds.overlaps(enemy.getBoundingBox())) continue;
 
             if (enemy instanceof Bomber) {
-                // Bombers: no touch damage; signal a bomb drop and despawn
-                Bomber b = (Bomber) enemy;
-                b.onPlayerCollision();   // sets dropBombRequested = true
-                toRemove.add(enemy);     // let the game loop spawn the bomb at its position
-            } else {
-                // Default enemies: apply their touch damage (if any), then notify them
-                int dmg = Math.max(0, enemy.getDamage());
-                if (dmg > 0) {
-                    player.takeDamage(dmg);
-                }
+                // Signal bomb drop (your game loop performs the actual spawn at enemy position)
                 enemy.onPlayerCollision();
-
-                // If you want certain enemies to despawn on touch, you can add them to toRemove here.
-                // e.g., if (enemy instanceof Goblin) toRemove.add(enemy);
+                toRemove.add(enemy);
+            } else {
+                int damage = Math.max(0, enemy.getDamage());
+                if (damage > 0) player.takeDamage(damage);
+                enemy.onPlayerCollision();
+                // If certain enemies should despawn on touch, add to 'toRemove' here.
             }
         }
 
-        // Remove after the loop to avoid iterator nesting issues
-        if (!toRemove.isEmpty()) {
-            enemies.removeAll(toRemove);
-        }
+        if (!toRemove.isEmpty()) enemies.removeAll(toRemove);
     }
 }
