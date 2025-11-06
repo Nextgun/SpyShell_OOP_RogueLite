@@ -17,25 +17,42 @@ import java.util.List;
 
 public class CollisionManager {
 
+    /**
+     * Check for collisions between the player and all enemies.
+     * Applies touch damage / collision hooks and removes any enemies
+     * that should despawn after contact.
+     */
     public static void checkPlayerEnemyCollisions(Player player, List<Enemy> enemies) {
         Rectangle playerBounds = player.getBoundingBox();
-        List<Enemy> toRemove = new ArrayList<>();
+        List<Enemy> enemiesToRemove = new ArrayList<>();
 
         for (Enemy enemy : enemies) {
-            if (!playerBounds.overlaps(enemy.getBoundingBox())) continue;
+            if (!playerBounds.overlaps(enemy.getBoundingBox())) {
+                continue;
+            }
 
             if (enemy instanceof Bomber) {
-                // Signal bomb drop (your game loop performs the actual spawn at enemy position)
+                // Bombers: signal bomb-drop behavior and mark for removal.
                 enemy.onPlayerCollision();
-                toRemove.add(enemy);
+                enemiesToRemove.add(enemy);
             } else {
+                // Default enemies: apply their touch damage (if any),
+                // then allow subclass-specific behavior via onPlayerCollision().
                 int damage = Math.max(0, enemy.getDamage());
-                if (damage > 0) player.takeDamage(damage);
+                if (damage > 0) {
+                    player.takeDamage(damage);
+                }
+
                 enemy.onPlayerCollision();
-                // If certain enemies should despawn on touch, add to 'toRemove' here.
+                // If specific enemy types should despawn on touch,
+                // add them to enemiesToRemove here.
             }
         }
 
-        if (!toRemove.isEmpty()) enemies.removeAll(toRemove);
-    }
-}
+        // Remove after the loop to avoid iterator/concurrent modification issues.
+        if (!enemiesToRemove.isEmpty()) {
+            enemies.removeAll(enemiesToRemove);
+        }
+    } // End of method checkPlayerEnemyCollisions
+
+} // End of class CollisionManager
