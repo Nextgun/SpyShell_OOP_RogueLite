@@ -25,9 +25,37 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 // imports Actor, the base class for all UI elements in scene2d
 import com.badlogic.gdx.scenes.scene2d.Actor;
 
+/**
+* X-Runner
+* text text text
+* text text text
+* text text text 
+* text text text
+* text text text 
+* text text text 
+* text text text
+*
+* @author Ayesha Khan
+* @version 1.0
+* @since 2025-11-09
+*/
+
 // declares the main class, extending ApplicationAdapter to get lifecycle methods
 public class GameLauncher extends ApplicationAdapter {
-
+/**
+* This method is used to declare, initialize, and create user interface (UI) elements
+* that will be displayed throughout the execution of X-Runner. It utilizes an
+* enum MenuState to manage and display various UI screens. It includes a main menu,
+* options menu, pause menu, game over menu, and "you won" menu. 
+* The main menu is the initial screen that the user sees upon the execution of the program.
+* From here, the user can instigate the gameplay loop through clicking the "Start" menu 
+* The options menu provides the option for the user to re-bind the controls of the game. 
+* @param numA This is the first paramter to addNum method
+* @param numB This is the second parameter to addNum
+method
+* @return int This returns sum of numA and numB.
+*/
+	
 	// declare a field to hold the Stage (the container for all UI elements)
     private Stage stage;
     
@@ -60,8 +88,20 @@ public class GameLauncher extends ApplicationAdapter {
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
 
         showMainMenu();
-    }
+    } // end of create()
     
+    /**
+    * This is the showMainMenu() method. 
+    * It sets the state of the game to the MAIN enum, which will thus display the main menu. 
+    * The main menu is the initial screen that the user sees upon the execution of the program.
+    * Clicking "START" will begin the gameplay by calling the gameplay loop function.
+    * Clicking "OPTIONS" will switch the state to the OPTIONS menu, where the user can adjust settings. 
+    * Clicking "EXIT" will terminate the execution of the program..
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
     private void showMainMenu() {
     	
     	currentState = MenuState.MAIN;
@@ -136,8 +176,15 @@ public class GameLauncher extends ApplicationAdapter {
                 Gdx.app.exit();
             }
         }); // close the listener
-    } // end of showMainMenu
+    } // end of showMainMenu()
     
+    /**
+    * This is the showOptionsMenu method.
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
     private void showOptionsMenu() {
     	currentState = MenuState.OPTIONS;
     	stage.clear();
@@ -159,8 +206,15 @@ public class GameLauncher extends ApplicationAdapter {
         Label controlsHeader = new Label("CONTROLS", skin);
         controlsHeader.setFontScale(1.5f);
         table.add(controlsHeader).colspan(2).padTop(20).padBottom(10).row();
-    } // end of options
+    } // end of showOptionsMenu()
     
+    /**
+    * This is the showPauseMenu method.
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
     private void showPauseMenu() {
         currentState = MenuState.PAUSE;
         stage.clear();
@@ -205,8 +259,15 @@ public class GameLauncher extends ApplicationAdapter {
                 showMainMenu();
             }
         });
-    } // END OF SHOWPAUSEMENU
-    
+    } // end of showPauseMenu()
+
+    /**
+    * This is the showGameOverMenu method.
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
     private void showGameOverMenu() {
         currentState = MenuState.GAME_OVER;
         stage.clear();
@@ -250,7 +311,13 @@ public class GameLauncher extends ApplicationAdapter {
         });
     } // end of showGameOverMenu
     
-    // START OF SHOWYOUWONMENU
+    /**
+    * This is the main method which makes use of addNum method.
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
     private void showYouWonMenu() {
         currentState = MenuState.YOU_WON;
         stage.clear();
@@ -293,9 +360,16 @@ public class GameLauncher extends ApplicationAdapter {
                 Gdx.app.exit();
             }
         });
-    } // END OF showYouWonMenu
+    } // end of showYouWonMenu()
   
- // override the render method, called every frame (~60 fps)
+    /**
+    * This is the main method which makes use of addNum method.
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
+    // override the render method, called every frame (~60 fps)
     @Override
     public void render() {
     	// set the clear color to black (rgb = 0, alpha = 1)
@@ -309,15 +383,29 @@ public class GameLauncher extends ApplicationAdapter {
         
         // render the stage and all its UI elements to the screen
         stage.draw();
-    } // close render method
+    } // end of render()
 
+    /**
+    * This is the main method which makes use of addNum method.
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
     // override the resize method, called when the window is resized
     @Override
     public void resize(int width, int height) {
     	// update viewport to the new window size while maintaining aspect ratio (true = center camera)
         stage.getViewport().update(width, height, true);
-    } // close resize method
+    } // end of resize()
 
+    /**
+    * This is the main method which makes use of addNum method.
+    * @param args Unused.
+    * @return Nothing.
+    * @exception IOException On input error.
+    * @see IOException
+    */
     // override the dispose method, called when the application closes
     @Override
     public void dispose() {
@@ -325,7 +413,7 @@ public class GameLauncher extends ApplicationAdapter {
         stage.dispose();
         // free memory used by the skin (textures, fonts, etc.)
         skin.dispose();
-    } // close the dispose method
+    } // end of dispose()
 } // end of class
 
 

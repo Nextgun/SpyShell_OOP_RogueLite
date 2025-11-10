@@ -1,3 +1,19 @@
+/**
+* <h1>Add Two Numbers!</h1>
+* The AddNum program implements an application that
+* simply adds two given integer numbers and Prints
+* the output on the screen.
+* <p>
+* <b>Note:</b> Giving proper comments in your program makes
+it more
+* user friendly and it is assumed as a high quality code.
+*
+* @author Ayesha Khan
+* @version 1.1
+* @since 2025-11-07
+*/
+
+
 // declares package namespace for this class
 package cyberrunner.Enemys;
 
