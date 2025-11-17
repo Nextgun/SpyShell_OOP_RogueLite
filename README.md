@@ -1,5 +1,8 @@
 # SpyShell_OOP_RogueLite
 
+### You can download the .jar file called and double click it to play the game! No need to download the whole repo!
+
+
 A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
 
 This project was generated with a template including simple application launchers and an `ApplicationAdapter` extension that draws a simple GUI on the screen.
