@@ -10,6 +10,7 @@
 package cyberrunner.Enemys;
 
 import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
@@ -28,9 +29,17 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 
 import cyberrunner.Enemys.Berserker.State;
+import cyberrunner.game.KeybindManager;
 
 public class EnemySandboxApp extends ApplicationAdapter {
-
+	private KeybindManager keybindManager;
+	
+	// a constructor bc apparently there wasnt one before
+	public EnemySandboxApp(KeybindManager keybindManager) {
+        this.keybindManager = keybindManager;
+    }
+	
+	
     // ------------------------------------------------------------------------
     // Core
     // ------------------------------------------------------------------------
@@ -387,8 +396,8 @@ public class EnemySandboxApp extends ApplicationAdapter {
         float vx=0f, vy=0f;
         if (Gdx.input.isKeyPressed(Input.Keys.W)) vy += 1f;
         if (Gdx.input.isKeyPressed(Input.Keys.S)) vy -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) vx -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) vx += 1f;
+        if (keybindManager.isMoveLeftPressed()) vx -= 1f;
+        if (keybindManager.isMoveRightPressed()) vx += 1f;
 
         float len = (float)Math.sqrt(vx*vx+vy*vy);
         if (len > 0f) {
@@ -405,8 +414,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
     }
 
     private void handleDash() {
-        boolean pressed = Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)
-                       || Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_RIGHT);
+        boolean pressed = keybindManager.isDashPressed();
         if (!pressed || dashCooldownTimer>0f || isDashing) return;
 
         float dx = lastMoveDirX, dy = lastMoveDirY;

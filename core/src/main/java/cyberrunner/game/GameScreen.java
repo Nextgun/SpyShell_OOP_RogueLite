@@ -24,7 +24,7 @@ public class GameScreen implements Screen {
     public GameScreen(Game game, KeybindManager keybindManager) {
         this.game = game;
         this.keybindManager = keybindManager;
-        enemyApp = new EnemySandboxApp();
+        enemyApp = new EnemySandboxApp(this.keybindManager);
         enemyApp.create();
     }
 
