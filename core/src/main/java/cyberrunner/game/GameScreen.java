@@ -37,7 +37,7 @@ public class GameScreen implements Screen {
         
 
         // Check if player HP is zero
-         if (enemyApp.getPlayer().getHp() <= 0) {
+         if (enemyApp.getPlayerHealth() <= 0) {
              game.setScreen(new MainMenuScreen(game)); // Go back to main menu
          }
 

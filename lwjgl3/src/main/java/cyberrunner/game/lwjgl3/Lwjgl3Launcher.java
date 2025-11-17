@@ -27,4 +27,4 @@ public class Lwjgl3Launcher {
         // Entry: GameLauncher -> EnemySandboxApp
         return new Lwjgl3Application(new GameLauncher(), config);
     }
-}
+} // End of class Lwjgl3Launcher

@@ -78,7 +78,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private boolean showAttackBrows = false;
 
     // Dash (cooldown + smooth interpolation)
-    private final float dashCooldownSeconds = 5f;
+    private final float dashCooldownSeconds = 2f;
     private float dashCooldownTimer = 0f;
     private final float dashDistancePixels = 220f;
     private boolean isDashing = false;
@@ -136,7 +136,7 @@ public class EnemySandboxApp extends ApplicationAdapter {
     private int coinCount = 0;
 
     // Spawner
-    private float spawnInterval = 2.5f;
+    private float spawnInterval = 0.5f;
     private float spawnTimer    = 0f;
 
     // Pathing helpers (used for simple melee enemies; Archer/Berserker self-drive)
@@ -172,6 +172,24 @@ public class EnemySandboxApp extends ApplicationAdapter {
     // Face styles
     private enum FaceStyle { PLAYER_SMILE, GOBLIN_DEVIOUS, HOB_DEVIOUS, ARCHER_MASK, BOMBER_ANGRY, BERSERKER_HELM }
 
+    
+    
+    
+    
+    
+    
+    // Hector: return player health to set a game over mechanic
+    public int getPlayerHealth() {
+    	return playerHealth;
+    }
+    
+    
+    
+    
+    
+    
+    
+    
     // ------------------------------------------------------------------------
     // EnemyContext wiring (world hooks for enemies)
     // ------------------------------------------------------------------------
