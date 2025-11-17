@@ -1,65 +1,21 @@
 
-// Author: Martin Taylor
-// File: GameLauncher.java
-// Date: 2025-11-04
-// Description: Core application entry point for all platforms.
-//              Delegates lifecycle calls to EnemySandboxApp so launchers
-//              only need to construct GameLauncher.
+//************************************
+//Program Name: GameLauncher.java
+//Developer: Hector Marrero-Colominas
+//Date Created: 11/17/2025
+//Version: 2.0
+//Purpose: Entry point for the game; manages screen transitions using LibGDX Game class
+//************************************
 
 package cyberrunner.game;
 
+import com.badlogic.gdx.Game;
 
-// imports the base class that provides lifecycle methods for a libGDX application
-import com.badlogic.gdx.ApplicationAdapter;
-import cyberrunner.Enemys.EnemySandboxApp;
-
-public class GameLauncher extends ApplicationAdapter {
-
-    private EnemySandboxApp enemySandboxApp;
+public class GameLauncher extends Game {
 
     @Override
     public void create() {
-        // Create and initialize the actual game/sandbox
-        enemySandboxApp = new EnemySandboxApp();
-        enemySandboxApp.create();
+    	// Start at main menu
+    	setScreen(new MainMenuScreen(this)); 
     }
-
- // override the render method, called every frame (~60 fps)
-    @Override
-    public void render() {
-        // Delegate rendering & game loop to EnemySandboxApp
-        if (enemySandboxApp != null) {
-            enemySandboxApp.render();
-        }
-    }
-
-    // override the resize method, called when the window is resized
-    @Override
-    public void resize(int width, int height) {
-        if (enemySandboxApp != null) {
-            enemySandboxApp.resize(width, height);
-        }
-    }
-
-    @Override
-    public void pause() {
-        if (enemySandboxApp != null) {
-            enemySandboxApp.pause();
-        }
-    }
-
-    @Override
-    public void resume() {
-        if (enemySandboxApp != null) {
-            enemySandboxApp.resume();
-        }
-    }
-
-    // override the dispose method, called when the application closes
-    @Override
-    public void dispose() {
-        if (enemySandboxApp != null) {
-            enemySandboxApp.dispose();
-        }
-    }
-}
+} // End of class GameLauncher

@@ -1,4 +1,5 @@
-// Author: Martin Taylor
+// Author: Hector Marrero-Colominas
+// Co-Developer: Martin Taylor
 // File: Lwjgl3Launcher.java
 // Description: Desktop launcher. Starts GameLauncher, which delegates to EnemySandboxApp.
 
