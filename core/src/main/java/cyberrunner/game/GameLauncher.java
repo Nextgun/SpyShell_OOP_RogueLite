@@ -6,16 +6,23 @@
 //Version: 2.0
 //Purpose: Entry point for the game; manages screen transitions using LibGDX Game class
 //************************************
-
 package cyberrunner.game;
 
 import com.badlogic.gdx.Game;
 
 public class GameLauncher extends Game {
+    private KeybindManager keybindManager;
 
     @Override
     public void create() {
-    	// Start at main menu
-    	setScreen(new MainMenuScreen(this)); 
+        // Create the keybind manager first
+        keybindManager = new KeybindManager();
+        
+        // Then create the main menu screen with it
+        setScreen(new MainMenuScreen(this, keybindManager));
     }
-} // End of class GameLauncher
+    
+    public KeybindManager getKeybindManager() {
+        return keybindManager;
+    }
+}

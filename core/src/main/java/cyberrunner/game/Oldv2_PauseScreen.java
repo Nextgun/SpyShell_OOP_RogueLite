@@ -13,14 +13,14 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
-public class PauseScreen implements Screen {
+public class Oldv2_PauseScreen implements Screen {
     private final Game game;
     private final Screen previousScreen;
     private final KeybindManager keybindManager;
     private Stage stage;
     private Skin skin;
 
-    public PauseScreen(Game game, Screen previousScreen, KeybindManager keybindManager) {
+    public Oldv2_PauseScreen(Game game, Screen previousScreen, KeybindManager keybindManager) {
         this.game = game;
         this.previousScreen = previousScreen;
         this.keybindManager = keybindManager;
@@ -35,8 +35,13 @@ public class PauseScreen implements Screen {
         table.setFillParent(true);
         stage.addActor(table);
 
+        // create a text label displaying the title using the loaded skin's style
         Label title = new Label("X-RUNNER", skin);
+
+        // make the title text x2 as large as the default size
         title.setFontScale(2f);
+
+        // add the title to the table w/ 40 pixels of padding below it, then moves to the next row
         table.add(title).padBottom(40).row();
 
         TextButton resumeButton = new TextButton("RESUME", skin);
@@ -57,13 +62,17 @@ public class PauseScreen implements Screen {
         optionsButton.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                game.setScreen(new OptionsScreen(game, PauseScreen.this, keybindManager));
+                // Pass the current pause screen so we can come back to it
+//                game.setScreen(new OptionsScreen(game, PauseScreen.this, keybindManager));
+                game.setScreen(new OptionsScreen(game, this, keybindManager));
+
             }
         });
 
         quitButton.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
+                // Go back to main menu
                 game.setScreen(new MainMenuScreen(game, keybindManager));
             }
         });
@@ -79,15 +88,11 @@ public class PauseScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
+        // Same logic as MainMenuScreen
         stage.getViewport().update(width, height, true);
     }
 
-    @Override 
-    public void show() {
-        // CRITICAL: Set input processor when screen is shown
-        Gdx.input.setInputProcessor(stage);
-    }
-    
+    @Override public void show() { }
     @Override public void pause() { }
     @Override public void resume() { }
     @Override public void hide() { }
@@ -95,4 +100,5 @@ public class PauseScreen implements Screen {
         stage.dispose();
         skin.dispose();
     }
-}
+
+} // End of class PauseScreen

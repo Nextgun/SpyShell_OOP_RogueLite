@@ -18,10 +18,12 @@ import cyberrunner.Enemys.EnemySandboxApp;
 
 public class GameScreen implements Screen {
     private final Game game;
+    private KeybindManager keybindManager;
     private EnemySandboxApp enemyApp;
 
-    public GameScreen(Game game) {
+    public GameScreen(Game game, KeybindManager keybindManager) {
         this.game = game;
+        this.keybindManager = keybindManager;
         enemyApp = new EnemySandboxApp();
         enemyApp.create();
     }
@@ -32,13 +34,13 @@ public class GameScreen implements Screen {
         
         // Check for ESC to pause
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            game.setScreen(new PauseScreen(game, this));
+            game.setScreen(new PauseScreen(game, this, keybindManager));
         }
         
 
         // Check if player HP is zero
          if (enemyApp.getPlayerHealth() <= 0) {
-             game.setScreen(new MainMenuScreen(game)); // Go back to main menu
+             game.setScreen(new MainMenuScreen(game, keybindManager)); // Go back to main menu
          }
 
     }
